@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { CheckCheck, Sparkles } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, Bell, CheckCheck, Sparkles } from "lucide-react"
 
 import {
   initialNotifications,
@@ -11,7 +12,8 @@ import {
   type AppNotification,
 } from "@/lib/notifications"
 
-import { ProfileSidebar } from "@/components/dashboard/profile-sidebar"
+import { PageHeading } from "@/components/dashboard/page-heading"
+import { SiteShell } from "@/components/dashboard/site-shell"
 import { NotificationItem } from "@/components/profile/notification-item"
 
 export const dynamic = "force-dynamic"
@@ -59,19 +61,56 @@ export default function ThongBaoPage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[240px_1fr] lg:gap-6 lg:px-6">
-      <ProfileSidebar />
+    <SiteShell>
+      <div className="mb-4">
+        <Link
+          href="/ca-nhan"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Quay lại Trang cá nhân
+        </Link>
+      </div>
 
-      <div>
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Thông báo</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {items.length} thông báo
-              {filter === "unread" && ` · ${unreadCount} chưa đọc`}
-            </p>
+      <PageHeading
+        icon={Bell}
+        title="Trung tâm Thông báo"
+        desc="Theo dõi các thông báo mới nhất về chuỗi học, bài học được gợi ý và thành tích cá nhân."
+        bubbleClass="bg-rose-500"
+      />
+
+      <div className="mt-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+        {/* Actions bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5 dark:border-slate-800">
+          <div className="flex flex-wrap gap-2">
+            {FILTERS.map((f) => {
+              const active = filter === f.key
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setFilter(f.key)}
+                  className={`relative rounded-full border px-4 py-1.5 text-xs font-bold transition-colors ${
+                    active
+                      ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-600/25"
+                      : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  }`}
+                >
+                  {f.label}
+                  <span
+                    className={`ml-1.5 rounded-full px-1.5 py-0.25 text-[10px] font-bold ${
+                      active
+                        ? "bg-white text-blue-600"
+                        : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {chipCount(f.key)}
+                  </span>
+                </button>
+              )
+            })}
           </div>
+
           {unreadCount > 0 && (
             <button
               type="button"
@@ -84,61 +123,34 @@ export default function ThongBaoPage() {
           )}
         </div>
 
-        {/* Filter chips */}
-        <div className="mb-5 flex flex-wrap gap-2">
-          {FILTERS.map((f) => {
-            const active = filter === f.key
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFilter(f.key)}
-                className={`relative rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                  active
-                    ? "border-blue-600 bg-blue-600 text-white"
-                    : "border-slate-200 bg-white text-slate-500 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800"
-                }`}
-              >
-                {f.label}
-                <span
-                  className={`ml-1 rounded-full px-1.5 py-0.25 text-[10px] font-bold ${
-                    active
-                      ? "bg-blue-500/20 text-white"
-                      : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                  }`}
-                >
-                  {chipCount(f.key)}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
         {/* List */}
-        {items.length === 0 ? (
-          <div className="py-12 text-center">
-            <Sparkles className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              {filter === "read"
-                ? "Chưa có thông báo nào đã đọc."
-                : filter === "unread"
-                  ? "Tất cả thông báo đã được đọc rồi!"
-                  : "Không có thông báo nàо ở mục này."}
-            </p>
-          </div>
-        ) : (
-          <ul className="space-y-1">
-            {items.map((n) => (
-              <NotificationItem
-                key={n.id}
-                notification={n}
-                isRead={!!n.read}
-                onClick={() => handleMarkOne(n.id)}
-              />
-            ))}
-          </ul>
-        )}
+        <div className="mt-5">
+          {items.length === 0 ? (
+            <div className="py-12 text-center">
+              <Sparkles className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                {filter === "read"
+                  ? "Chưa có thông báo nào đã đọc."
+                  : filter === "unread"
+                    ? "Tuyệt vời! Tất cả thông báo đã được đọc."
+                    : "Không có thông báo nào."}
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {items.map((n) => (
+                <NotificationItem
+                  key={n.id}
+                  notification={n}
+                  isRead={!!n.read}
+                  onClick={() => handleMarkOne(n.id)}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </div>
+    </SiteShell>
   )
 }
+

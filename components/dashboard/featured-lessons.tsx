@@ -34,12 +34,12 @@ export function FeaturedLessons() {
           <a
             key={l.title}
             href="#"
-            className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
           >
             <img
               src={l.img || "/placeholder.svg"}
               alt=""
-              className="h-16 w-16 shrink-0 rounded-xl object-cover"
+              className="h-16 w-16 shrink-0 rounded-xl object-cover dark:brightness-90"
             />
             <div className="min-w-0 flex-1">
               <span
@@ -47,12 +47,12 @@ export function FeaturedLessons() {
               >
                 {l.badge}
               </span>
-              <h3 className="mt-1.5 truncate font-bold text-slate-900">
+              <h3 className="mt-1.5 truncate font-bold text-slate-900 dark:text-white">
                 {l.title}
               </h3>
-              <p className="text-sm text-slate-500">{l.meta}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{l.meta}</p>
             </div>
-            <ArrowRight className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600" />
+            <ArrowRight className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300" />
           </a>
         ))}
       </div>

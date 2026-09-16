@@ -41,21 +41,21 @@ export function ResultRow({
       onMouseEnter={onHover}
       onClick={onSelect}
       className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors ${
-        active ? "bg-blue-50" : "hover:bg-slate-50"
+        active ? "bg-blue-50 dark:bg-blue-950/40" : "hover:bg-slate-50 dark:hover:bg-slate-800/60"
       }`}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
         <Icon className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-slate-900">
+        <span className="block truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
           {item.title}
         </span>
-        <span className="block truncate text-xs text-slate-500">{item.sub}</span>
+        <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{item.sub}</span>
       </span>
       <ArrowRight
         className={`h-4 w-4 shrink-0 transition-all ${
-          active ? "translate-x-0 text-blue-600 opacity-100" : "-translate-x-1 opacity-0"
+          active ? "translate-x-0 text-blue-600 opacity-100 dark:text-blue-400" : "-translate-x-1 opacity-0"
         }`}
       />
     </button>

@@ -1,109 +1,133 @@
 "use client"
 
-import { BellRing, Check, Moon, Sun, SunMoon } from "lucide-react"
+import { Check, Laptop, Moon, Palette, Sun } from "lucide-react"
 
 import { useTheme, type ThemeChoice } from "@/lib/theme"
-import { cn } from "@/lib/utils"
 
-const themeOptions: { id: ThemeChoice; label: string; desc: string; icon: typeof Sun }[] = [
-  { id: "light", label: "Sáng", desc: "Nền trắng quen thuộc", icon: Sun },
-  { id: "dark", label: "Tối", desc: "Dịu mắt khi học đêm", icon: Moon },
-  { id: "system", label: "Theo máy", desc: "Tự đổi theo hệ thống", icon: SunMoon },
-]
-
-function Toggle({
-  on,
-  onClick,
-  label,
-}: {
-  on: boolean
-  onClick: () => void
+type Option = {
+  id: ThemeChoice
   label: string
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onClick}
-      className={cn(
-        "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-        on ? "bg-blue-600" : "bg-slate-200"
-      )}
-    >
-      <span
-        className={cn(
-          "absolute top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-all",
-          on ? "left-[1.375rem]" : "left-0.5"
-        )}
-      >
-        {on && <Check className="h-3 w-3 text-blue-600" />}
-      </span>
-    </button>
-    )
+  desc: string
+  icon: typeof Sun
+  previewBg: string
+  previewBorder: string
+  previewText: string
+  previewBar: string
 }
+
+const THEME_OPTIONS: Option[] = [
+  {
+    id: "light",
+    label: "Giao diện Sáng",
+    desc: "Nền trắng sáng rõ, tươi mới và dễ nhìn ban ngày",
+    icon: Sun,
+    previewBg: "bg-slate-100",
+    previewBorder: "border-slate-300",
+    previewText: "bg-slate-800",
+    previewBar: "bg-blue-600",
+  },
+  {
+    id: "dark",
+    label: "Giao diện Tối",
+    desc: "Nền tối huyền bí, bảo vệ mắt và tiết kiệm pin",
+    icon: Moon,
+    previewBg: "bg-slate-900",
+    previewBorder: "border-slate-700",
+    previewText: "bg-slate-200",
+    previewBar: "bg-blue-500",
+  },
+  {
+    id: "system",
+    label: "Tự động (Hệ thống)",
+    desc: "Tự động đồng bộ theo cài đặt hệ điều hành của bạn",
+    icon: Laptop,
+    previewBg: "bg-gradient-to-r from-slate-100 to-slate-900",
+    previewBorder: "border-slate-400",
+    previewText: "bg-slate-500",
+    previewBar: "bg-indigo-600",
+  },
+]
 
 export function AppearanceCard() {
   const { theme, resolved, setTheme } = useTheme()
 
-  const badge = (choice: ThemeChoice) =>
-    theme === choice ? "border-blue-500 bg-blue-50/70 shadow dark:bg-blue-900/20" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"
-
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-start gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          <SunMoon className="h-4 w-4" />
+    <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+          <Palette className="h-5 w-5" />
         </span>
-        <div className="flex-1">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Giao diện</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Chọn chế độ hiển thị mong muốn</p>
+        <div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            Tùy biến Giao diện & Màu sắc
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Lựa chọn chế độ hiển thị phù hợp nhất với thói quen học tập của bạn
+          </p>
         </div>
       </div>
 
-      <div className="mt-4 space-y-3">
-        {themeOptions.map((opt) => {
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        {THEME_OPTIONS.map((opt) => {
           const Icon = opt.icon
           const selected = theme === opt.id
+
           return (
             <button
               key={opt.id}
               type="button"
               onClick={() => setTheme(opt.id)}
-              aria-pressed={selected}
-              className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${badge(opt.id)}`}
+              className={`group relative flex flex-col rounded-2xl border p-4 text-left transition-all ${
+                selected
+                  ? "border-blue-600 bg-blue-50/40 shadow-md shadow-blue-600/10 ring-2 ring-blue-500/20 dark:border-blue-500 dark:bg-blue-950/20"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-slate-700"
+              }`}
             >
-              <span
-                className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                  selected ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
-                }`}
+              {/* Preview Box */}
+              <div
+                className={`relative mb-3.5 h-20 w-full overflow-hidden rounded-xl border ${opt.previewBorder} ${opt.previewBg} p-2.5 transition-transform group-hover:scale-[1.02]`}
               >
-                <Icon className="h-5 w-5" />
-              </span>
-              <div className="flex flex-1 flex-col">
-                <span className={`text-sm font-semibold ${selected ? "text-blue-700 dark:text-blue-400" : "text-slate-900 dark:text-slate-100"}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-red-400" />
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                </div>
+                <div className="mt-2 space-y-1.5">
+                  <div className={`h-2 w-3/4 rounded ${opt.previewText}`} />
+                  <div className={`h-1.5 w-1/2 rounded opacity-50 ${opt.previewText}`} />
+                  <div className={`h-1.5 w-1/3 rounded ${opt.previewBar}`} />
+                </div>
+              </div>
+
+              {/* Title & Desc */}
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                  <Icon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                   {opt.label}
                 </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">{opt.desc}</span>
+                {selected && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
+                    <Check className="h-3 w-3" />
+                  </span>
+                )}
               </div>
-              <Toggle on={selected} onClick={() => setTheme(opt.id)} label={`Chế độ ${opt.label}`} />
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                {opt.desc}
+              </p>
             </button>
           )
         })}
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-700/60 dark:bg-slate-800/40">
-        <div className="flex items-start gap-2.5">
-          <BellRing className="mt-0.5 h-4 w-4 text-slate-500 dark:text-slate-400" />
-          <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Chế độ <span className="font-medium text-slate-700 dark:text-slate-300">đã chọn</span>:{" "}
-            <span className="font-semibold text-slate-900 dark:text-slate-100">
-              {theme === "system" ? `Theo máy (${resolved})` : theme === "light" ? "Sáng" : "Tối"}
-            </span>
-          </p>
-        </div>
+      <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2.5 dark:bg-slate-800/50">
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          Chế độ đang áp dụng:
+        </span>
+        <span className="text-xs font-bold text-slate-900 dark:text-white">
+          {theme === "system" ? `Tự động (${resolved === "dark" ? "Đang Tối" : "Đang Sáng"})` : theme === "light" ? "Giao diện Sáng" : "Giao diện Tối"}
+        </span>
       </div>
     </section>
   )
 }
+

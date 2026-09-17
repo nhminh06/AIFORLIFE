@@ -4,13 +4,16 @@ import { useState } from "react"
 import {
   AlertTriangle,
   Download,
+  LogIn,
   LogOut,
   RefreshCw,
   Shield,
-  Trash2,
+  ShieldCheck,
 } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 
 export function AccountSecurityCard() {
+  const { user, logout, openAuthModal } = useAuth()
   const [resetConfirm, setResetConfirm] = useState(false)
   const [resetSuccess, setResetSuccess] = useState(false)
 
@@ -74,12 +77,60 @@ export function AccountSecurityCard() {
             Dữ liệu & Quản trị tài khoản
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Sao lưu lịch sử học tập, đặt lại tiến độ hoặc đăng xuất
+            Sao lưu lịch sử học tập, đặt lại tiến độ hoặc quản lý phiên đăng nhập
           </p>
         </div>
       </div>
 
       <div className="mt-6 space-y-4">
+        {/* Trạng thái xác thực tài khoản */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 transition-colors sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-800/40">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                {user ? "Tài khoản Firebase Cloud" : "Chưa đăng nhập tài khoản"}
+              </p>
+              {user ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+                  <ShieldCheck className="h-3 w-3" />
+                  Đã kết nối
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
+                  Chế độ khách
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+              {user
+                ? `Đang đăng nhập với email: ${user.email}`
+                : "Đăng nhập để đồng bộ tiến độ học lên đám mây và truy cập mọi nơi."}
+            </p>
+          </div>
+
+          <div>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-xs font-bold text-red-600 shadow-sm transition-all hover:bg-red-50 dark:border-red-900/40 dark:bg-slate-800 dark:text-red-400"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Đăng xuất tài khoản
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openAuthModal("login")}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-700"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                Đăng nhập / Đăng ký
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Sao lưu dữ liệu */}
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 transition-colors sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-800/40">
           <div>

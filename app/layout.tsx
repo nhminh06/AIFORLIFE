@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider, themeInitScript } from '@/lib/theme'
+import { AuthProvider } from '@/lib/auth-context'
+import { AuthModal } from '@/components/auth/auth-modal'
 
 const inter = Inter({
   subsets: ['latin', 'vietnamese'],
@@ -48,9 +50,12 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="font-sans antialiased">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+          <AuthModal />
+        </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

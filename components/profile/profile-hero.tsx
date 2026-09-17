@@ -6,21 +6,16 @@ import {
   Check,
   Flame,
   GraduationCap,
+  LogIn,
   Mail,
   PencilLine,
   ShieldCheck,
   Sparkles,
   Trophy,
-  User,
   Zap,
 } from "lucide-react"
-
-import {
-  initials,
-  loadProfile,
-  saveProfile,
-  type Profile,
-} from "@/lib/profile"
+import { useAuth } from "@/lib/auth-context"
+import { initials, type Profile } from "@/lib/profile"
 
 const AVATAR_GRADIENTS = [
   { id: "from-blue-500 to-indigo-600", label: "Lam Tinh Hải" },
@@ -38,7 +33,7 @@ const LEVELS = [
 ]
 
 export function ProfileHero() {
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const { user, userProfile, updateProfileData, openAuthModal } = useAuth()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Profile>({
     name: "",
@@ -50,39 +45,27 @@ export function ProfileHero() {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    const p = loadProfile()
-    setProfile(p)
-    setDraft(p)
-  }, [])
+    setDraft(userProfile)
+  }, [userProfile])
 
-  if (!profile) {
-    return (
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="h-36 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
-      </section>
-    )
-  }
-
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const clean: Profile = {
-      name: draft.name.trim() || profile.name,
-      email: draft.email.trim() || profile.email,
-      goal: draft.goal.trim() || profile.goal,
-      level: draft.level || profile.level || "Trung cấp (B1)",
-      joinedDate: profile.joinedDate || "Tháng 01/2026",
-      avatarColor: draft.avatarColor || profile.avatarColor || "from-blue-500 to-indigo-600",
+    const clean: Partial<Profile> = {
+      name: draft.name.trim() || userProfile.name,
+      email: draft.email.trim() || userProfile.email,
+      goal: draft.goal.trim() || userProfile.goal,
+      level: draft.level || userProfile.level || "Trung cấp (B1)",
+      avatarColor: draft.avatarColor || userProfile.avatarColor || "from-blue-500 to-indigo-600",
     }
-    saveProfile(clean)
-    setProfile(clean)
-    setDraft(clean)
+    await updateProfileData(clean)
     setEditing(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const activeGradient = profile.avatarColor || "from-blue-500 to-indigo-600"
+  const activeGradient = userProfile.avatarColor || "from-blue-500 to-indigo-600"
   const draftGradient = draft.avatarColor || activeGradient
+  const photoURL = user?.photoURL || userProfile.photoURL
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
@@ -95,25 +78,38 @@ export function ProfileHero() {
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-              Thành viên Học Viên Tích Cực
+              {user ? "Tài khoản học viên chính thức" : "Chế độ trải nghiệm khách"}
             </span>
             <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
               Hồ sơ học viên
             </h2>
             <p className="mt-1 text-sm text-blue-100">
-              Theo dõi tiến độ, tùy biến thông tin cá nhân và thiết lập mục tiêu hàng ngày.
+              Theo dõi tiến độ, tùy biến thông tin cá nhân và lưu trữ an toàn trên đám mây Firebase.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-md">
-              <Flame className="h-4 w-4 text-orange-300 animate-pulse" />
-              Chuỗi 12 ngày
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-md">
-              <Trophy className="h-4 w-4 text-amber-300" />
-              4,850 XP
-            </span>
+            {!user ? (
+              <button
+                type="button"
+                onClick={() => openAuthModal("login")}
+                className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-xs font-bold text-blue-700 shadow-lg transition-all hover:bg-blue-50"
+              >
+                <LogIn className="h-4 w-4" />
+                Đăng nhập để đồng bộ
+              </button>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-md">
+                  <Flame className="h-4 w-4 text-orange-300 animate-pulse" />
+                  Chuỗi 12 ngày
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-2xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-md">
+                  <Trophy className="h-4 w-4 text-amber-300" />
+                  4,850 XP
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -124,15 +120,26 @@ export function ProfileHero() {
           <div className="flex items-end gap-4">
             <div className="relative">
               <span
-                className={`flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br ${
+                className={`flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br ${
                   editing ? draftGradient : activeGradient
                 } text-2xl font-black text-white shadow-xl ring-4 ring-white transition-transform dark:ring-slate-900 sm:h-24 sm:w-24 sm:text-3xl`}
               >
-                {initials(editing ? draft.name || profile.name : profile.name)}
+                {photoURL && !editing ? (
+                  <img
+                    src={photoURL}
+                    alt={userProfile.name}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  initials(editing ? draft.name || userProfile.name : userProfile.name)
+                )}
               </span>
               <span
-                className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white dark:ring-slate-900"
-                title="Đang hoạt động"
+                className={`absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full text-white ring-2 ring-white dark:ring-slate-900 ${
+                  user ? "bg-emerald-500" : "bg-amber-500"
+                }`}
+                title={user ? "Đã liên kết Firebase Cloud" : "Chế độ khách (Cục bộ)"}
               >
                 <ShieldCheck className="h-4 w-4" />
               </span>
@@ -140,36 +147,47 @@ export function ProfileHero() {
 
             <div className="mb-1">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
-                {profile.name}
+                {userProfile.name}
               </h3>
               <p className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                 <Mail className="h-3.5 w-3.5" />
-                {profile.email}
+                {user?.email || userProfile.email}
                 <span className="text-slate-300 dark:text-slate-600">·</span>
                 <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-400">
-                  {profile.level || "Trung cấp (B1)"}
+                  {userProfile.level || "Trung cấp (B1)"}
                 </span>
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(profile)
-              setEditing((v) => !v)
-            }}
-            className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            <PencilLine className="h-4 w-4" />
-            {editing ? "Hủy chỉnh sửa" : "Chỉnh sửa hồ sơ"}
-          </button>
+          <div className="flex items-center gap-2">
+            {!user && (
+              <button
+                type="button"
+                onClick={() => openAuthModal("register")}
+                className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-700"
+              >
+                Tạo tài khoản
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(userProfile)
+                setEditing((v) => !v)
+              }}
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <PencilLine className="h-4 w-4" />
+              {editing ? "Hủy chỉnh sửa" : "Chỉnh sửa hồ sơ"}
+            </button>
+          </div>
         </div>
 
         {saved && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+          <div className="mt-4 flex items-center gap-2 rounded-2xl bg-emerald-50 p-3 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
             <Check className="h-4 w-4 shrink-0" />
-            Đã lưu thay đổi thông tin thành công! Avatar và dữ liệu đã được đồng bộ toàn website.
+            Đã lưu thay đổi hồ sơ thành công! Dữ liệu đã được đồng bộ lên Firebase Cloud.
           </div>
         )}
 
@@ -181,7 +199,7 @@ export function ProfileHero() {
                 Trình độ hiện tại
               </span>
               <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
-                {profile.level || "Trung cấp (B1)"}
+                {userProfile.level || "Trung cấp (B1)"}
               </p>
             </div>
 
@@ -191,7 +209,7 @@ export function ProfileHero() {
                 Mục tiêu học tập
               </span>
               <p className="mt-1 line-clamp-1 text-sm font-bold text-slate-900 dark:text-slate-100">
-                {profile.goal || "Chinh phục tiếng Anh mỗi ngày"}
+                {userProfile.goal || "Chinh phục tiếng Anh mỗi ngày"}
               </p>
             </div>
 
@@ -201,7 +219,7 @@ export function ProfileHero() {
                 Ngày tham gia
               </span>
               <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
-                {profile.joinedDate || "Tháng 01/2026"}
+                {userProfile.joinedDate || "Tháng 01/2026"}
               </p>
             </div>
           </div>
@@ -230,9 +248,7 @@ export function ProfileHero() {
                           : "border-slate-200 bg-white/60 hover:bg-white dark:border-slate-700 dark:bg-slate-800/60"
                       }`}
                     >
-                      <span
-                        className={`h-4 w-4 rounded-full bg-gradient-to-br ${g.id}`}
-                      />
+                      <span className={`h-4 w-4 rounded-full bg-gradient-to-br ${g.id}`} />
                       <span className="text-slate-700 dark:text-slate-300">{g.label}</span>
                       {selected && <Check className="h-3.5 w-3.5 text-blue-600" />}
                     </button>
@@ -258,10 +274,11 @@ export function ProfileHero() {
                 <input
                   type="email"
                   value={draft.email}
+                  disabled={!!user}
                   onChange={(e) => setDraft({ ...draft, email: e.target.value })}
                   placeholder="you@example.com"
                   required
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-blue-900"
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-blue-900 dark:disabled:bg-slate-800/50 dark:disabled:text-slate-400"
                 />
               </label>
 
@@ -312,4 +329,3 @@ export function ProfileHero() {
     </section>
   )
 }
-

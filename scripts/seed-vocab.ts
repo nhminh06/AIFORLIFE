@@ -1,292 +1,68 @@
+/**
+ * Seed script — đẩy 9 bộ từ vựng mặc định lên Firestore.
+ *
+ * Cách chạy:
+ *   npx tsx scripts/seed-vocab.ts
+ *
+ * Script này sử dụng Firebase Admin SDK–free approach:
+ * dùng firebase client SDK với env vars từ .env.local
+ */
+
+import { initializeApp } from "firebase/app"
 import {
-  BookText,
-  Briefcase,
-  GraduationCap,
-  HeartPulse,
-  Home,
-  Monitor,
-  Music,
-  Plane,
-  Tag,
-  Users,
-  UtensilsCrossed,
-  type LucideIcon,
-} from "lucide-react"
+  getFirestore,
+  doc,
+  setDoc,
+  collection,
+} from "firebase/firestore"
+import * as dotenv from "dotenv"
+import * as path from "path"
 
-/**
- * Thang trình độ CEFR dùng cho bộ từ vựng (A1 → C2).
- */
-export type VocabLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2"
+// Load .env.local
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") })
 
-export const vocabLevels: VocabLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"]
-
-/** Nhãn mô tả tiếng Việt cho từng trình độ */
-export const vocabLevelLabels: Record<VocabLevel, string> = {
-  A1: "A1 — Người mới bắt đầu",
-  A2: "A2 — Cơ bản",
-  B1: "B1 — Trung cấp",
-  B2: "B2 — Trung cấp cao",
-  C1: "C1 — Nâng cao",
-  C2: "C2 — Thành thạo",
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-/**
- * Chuẩn hóa trình độ đọc từ Firestore:
- * bản cũ lưu "Cơ bản"/"Trung cấp"/"Nâng cao" → quy đổi sang thang CEFR.
- */
-export function normalizeVocabLevel(value: unknown): VocabLevel {
-  if (typeof value === "string") {
-    if ((vocabLevels as string[]).includes(value)) return value as VocabLevel
-    const legacyMap: Record<string, VocabLevel> = {
-      "Cơ bản": "A2",
-      "Trung cấp": "B1",
-      "Nâng cao": "C1",
-    }
-    if (value in legacyMap) return legacyMap[value]
-  }
-  return "A1"
+// Kiểm tra config
+if (!firebaseConfig.projectId) {
+  console.error("❌ Thiếu NEXT_PUBLIC_FIREBASE_PROJECT_ID trong .env.local")
+  process.exit(1)
 }
 
-export type VocabTopic = {
-  id: string
-  label: string
-  icon: LucideIcon
-  /** màu pastel cho chip đang chọn */
-  chipClass: string
-  /** màu đậm cho ô icon */
-  iconClass: string
-  /** key màu gốc — chỉ có ở chủ đề riêng do người dùng tạo */
-  customColor?: CustomTopicColor
-}
+const app = initializeApp(firebaseConfig)
+const db = getFirestore(app)
 
-export type VocabWord = {
+/* ------------------------------------------------------------------ */
+/*  9 bộ từ vựng mặc định (không chứa icon / class — chỉ data thuần) */
+/* ------------------------------------------------------------------ */
+
+type VocabWord = {
   en: string
   ipa: string
   type: "n" | "v" | "adj" | "adv" | "prep" | "phr"
   vi: string
 }
 
-export type VocabSet = {
+type VocabSetData = {
   slug: string
   name: string
   vi: string
   desc: string
   topicId: string
-  level: VocabLevel
-  /** tổng số từ của bộ */
+  level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2"
   total: number
-  /** số từ đã học */
-  learned: number
-  /** màu progress bar của bộ */
   accent: string
-  /** icon minh họa cho cả bộ từ — key trong setIconOptions (bộ tự tạo) */
-  icon?: string
   words: VocabWord[]
-  /** uid của người tạo — chỉ có ở bộ từ cá nhân */
-  ownerId?: string
-  /** cách tạo bộ từ: thủ công hoặc AI (bộ từ cá nhân) */
-  source?: "manual" | "ai"
-  /** tên chủ đề riêng do người dùng tự đặt (khi không dùng chủ đề có sẵn) */
-  topicLabel?: string
-  /** màu của chủ đề riêng */
-  topicColor?: CustomTopicColor
 }
 
-/**
- * Bảng màu cho chủ đề do người dùng tự tạo.
- * Dùng lại đúng các class pastel của chủ đề có sẵn để dark mode ăn theo globals.css.
- */
-export const customTopicColors = {
-  blue: {
-    label: "Xanh dương",
-    chipClass: "border-blue-200 bg-blue-50 text-blue-700",
-    iconClass: "bg-blue-600",
-  },
-  teal: {
-    label: "Xanh ngọc",
-    chipClass: "border-teal-200 bg-teal-50 text-teal-700",
-    iconClass: "bg-teal-600",
-  },
-  green: {
-    label: "Xanh lá",
-    chipClass: "border-green-200 bg-green-50 text-green-700",
-    iconClass: "bg-green-600",
-  },
-  orange: {
-    label: "Cam",
-    chipClass: "border-orange-200 bg-orange-50 text-orange-700",
-    iconClass: "bg-orange-500",
-  },
-  purple: {
-    label: "Tím",
-    chipClass: "border-purple-200 bg-purple-50 text-purple-700",
-    iconClass: "bg-purple-600",
-  },
-  pink: {
-    label: "Hồng",
-    chipClass: "border-pink-200 bg-pink-50 text-pink-700",
-    iconClass: "bg-pink-500",
-  },
-  sky: {
-    label: "Xanh nhạt",
-    chipClass: "border-sky-200 bg-sky-50 text-sky-700",
-    iconClass: "bg-sky-500",
-  },
-  indigo: {
-    label: "Chàm",
-    chipClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
-    iconClass: "bg-indigo-600",
-  },
-  rose: {
-    label: "Đỏ hồng",
-    chipClass: "border-rose-200 bg-rose-50 text-rose-700",
-    iconClass: "bg-rose-500",
-  },
-  slate: {
-    label: "Xám",
-    chipClass: "border-slate-200 bg-slate-50 text-slate-700",
-    iconClass: "bg-slate-500",
-  },
-} satisfies Record<string, { label: string; chipClass: string; iconClass: string }>
-
-export type CustomTopicColor = keyof typeof customTopicColors
-
-export const customTopicColorKeys = Object.keys(customTopicColors) as CustomTopicColor[]
-
-export const levelClass: Record<VocabLevel, string> = {
-  A1: "bg-green-100 text-green-700",
-  A2: "bg-teal-100 text-teal-700",
-  B1: "bg-amber-100 text-amber-700",
-  B2: "bg-orange-100 text-orange-700",
-  C1: "bg-rose-100 text-rose-700",
-  C2: "bg-purple-100 text-purple-700",
-}
-
-export const vocabTopics: VocabTopic[] = [
-  {
-    id: "doi-song",
-    label: "Đời sống",
-    icon: Home,
-    chipClass: "border-teal-200 bg-teal-50 text-teal-700",
-    iconClass: "bg-teal-600",
-  },
-  {
-    id: "du-lich",
-    label: "Du lịch",
-    icon: Plane,
-    chipClass: "border-blue-200 bg-blue-50 text-blue-700",
-    iconClass: "bg-blue-600",
-  },
-  {
-    id: "cong-viec",
-    label: "Công việc",
-    icon: Briefcase,
-    chipClass: "border-orange-200 bg-orange-50 text-orange-700",
-    iconClass: "bg-orange-500",
-  },
-  {
-    id: "hoc-tap",
-    label: "Học tập",
-    icon: GraduationCap,
-    chipClass: "border-purple-200 bg-purple-50 text-purple-700",
-    iconClass: "bg-purple-600",
-  },
-  {
-    id: "am-thuc",
-    label: "Ẩm thực",
-    icon: UtensilsCrossed,
-    chipClass: "border-green-200 bg-green-50 text-green-700",
-    iconClass: "bg-green-600",
-  },
-  {
-    id: "suc-khoe",
-    label: "Sức khỏe",
-    icon: HeartPulse,
-    chipClass: "border-pink-200 bg-pink-50 text-pink-700",
-    iconClass: "bg-pink-500",
-  },
-  {
-    id: "gia-dinh",
-    label: "Gia đình",
-    icon: Users,
-    chipClass: "border-sky-200 bg-sky-50 text-sky-700",
-    iconClass: "bg-sky-500",
-  },
-  {
-    id: "cong-nghe",
-    label: "Công nghệ",
-    icon: Monitor,
-    chipClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
-    iconClass: "bg-indigo-600",
-  },
-  {
-    id: "giai-tri",
-    label: "Giải trí",
-    icon: Music,
-    chipClass: "border-rose-200 bg-rose-50 text-rose-700",
-    iconClass: "bg-rose-500",
-  },
-]
-
-export function getVocabTopic(topicId: string): VocabTopic {
-  return (
-    vocabTopics.find((t) => t.id === topicId) ?? {
-      id: "khac",
-      label: "Khác",
-      icon: BookText,
-      chipClass: "border-slate-200 bg-slate-50 text-slate-700",
-      iconClass: "bg-slate-500",
-    }
-  )
-}
-
-/** topicId có nằm trong danh sách chủ đề hệ thống hay không */
-export function isBuiltInVocabTopic(topicId: string) {
-  return vocabTopics.some((t) => t.id === topicId)
-}
-
-/**
- * Resolve chủ đề để hiển thị cho 1 bộ từ:
- * ưu tiên chủ đề hệ thống, sau đó tới chủ đề riêng do người dùng tự tạo.
- */
-export function getVocabTopicForSet(
-  set: Pick<VocabSet, "topicId" | "topicLabel" | "topicColor">
-): VocabTopic {
-  const builtIn = vocabTopics.find((t) => t.id === set.topicId)
-  if (builtIn) return builtIn
-
-  if (set.topicLabel) {
-    const color = set.topicColor ?? "blue"
-    const palette = customTopicColors[color] ?? customTopicColors.blue
-    return {
-      id: set.topicId,
-      label: set.topicLabel,
-      icon: Tag,
-      chipClass: palette.chipClass,
-      iconClass: palette.iconClass,
-      customColor: color,
-    }
-  }
-
-  return getVocabTopic(set.topicId)
-}
-
-/** Gom các chủ đề riêng của người dùng, suy ra từ chính bộ từ họ đã tạo */
-export function customVocabTopicsFromSets(sets: VocabSet[]): VocabTopic[] {
-  const map = new Map<string, VocabTopic>()
-  for (const s of sets) {
-    if (!s.topicId || isBuiltInVocabTopic(s.topicId) || map.has(s.topicId)) continue
-    map.set(s.topicId, getVocabTopicForSet(s))
-  }
-  return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "vi"))
-}
-
-/* ------------------------------------------------------------------ */
-/*  9 bộ từ vựng mặc định — mỗi chủ đề 1 bộ × 20 từ                 */
-/* ------------------------------------------------------------------ */
-
-export const vocabSets: VocabSet[] = [
-  /* ── 1. Đời sống ─────────────────────────────────────────────── */
+const vocabSetsData: VocabSetData[] = [
   {
     slug: "daily-life",
     name: "Daily Life",
@@ -295,7 +71,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "doi-song",
     level: "A2",
     total: 20,
-    learned: 0,
     accent: "bg-teal-600",
     words: [
       { en: "routine", ipa: "/ruːˈtiːn/", type: "n", vi: "thói quen, lịch trình hằng ngày" },
@@ -320,8 +95,6 @@ export const vocabSets: VocabSet[] = [
       { en: "oversleep", ipa: "/ˌoʊ.vərˈsliːp/", type: "v", vi: "ngủ quên, ngủ nướng" },
     ],
   },
-
-  /* ── 2. Du lịch ──────────────────────────────────────────────── */
   {
     slug: "travel-essentials",
     name: "Travel Essentials",
@@ -330,7 +103,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "du-lich",
     level: "A2",
     total: 20,
-    learned: 0,
     accent: "bg-blue-600",
     words: [
       { en: "itinerary", ipa: "/aɪˈtɪn.ə.rer.i/", type: "n", vi: "lịch trình chuyến đi" },
@@ -355,8 +127,6 @@ export const vocabSets: VocabSet[] = [
       { en: "jet lag", ipa: "/ˈdʒet læɡ/", type: "n", vi: "lệch múi giờ" },
     ],
   },
-
-  /* ── 3. Công việc ────────────────────────────────────────────── */
   {
     slug: "office-communication",
     name: "Office Communication",
@@ -365,7 +135,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "cong-viec",
     level: "B1",
     total: 20,
-    learned: 0,
     accent: "bg-orange-500",
     words: [
       { en: "deadline", ipa: "/ˈded.laɪn/", type: "n", vi: "hạn chót" },
@@ -390,8 +159,6 @@ export const vocabSets: VocabSet[] = [
       { en: "responsibility", ipa: "/rɪˌspɑːn.səˈbɪl.ə.ti/", type: "n", vi: "trách nhiệm" },
     ],
   },
-
-  /* ── 4. Học tập ──────────────────────────────────────────────── */
   {
     slug: "study-skills",
     name: "Study Skills",
@@ -400,7 +167,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "hoc-tap",
     level: "A2",
     total: 20,
-    learned: 0,
     accent: "bg-purple-600",
     words: [
       { en: "assignment", ipa: "/əˈsaɪn.mənt/", type: "n", vi: "bài tập, bài luận" },
@@ -425,8 +191,6 @@ export const vocabSets: VocabSet[] = [
       { en: "brainstorm", ipa: "/ˈbreɪn.stɔːrm/", type: "v", vi: "động não, tìm ý tưởng" },
     ],
   },
-
-  /* ── 5. Ẩm thực ──────────────────────────────────────────────── */
   {
     slug: "food-drinks",
     name: "Food & Drinks",
@@ -435,7 +199,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "am-thuc",
     level: "A2",
     total: 20,
-    learned: 0,
     accent: "bg-green-600",
     words: [
       { en: "cuisine", ipa: "/kwɪˈziːn/", type: "n", vi: "ẩm thực, cách nấu ăn" },
@@ -460,8 +223,6 @@ export const vocabSets: VocabSet[] = [
       { en: "feast", ipa: "/fiːst/", type: "n", vi: "bữa tiệc lớn" },
     ],
   },
-
-  /* ── 6. Sức khỏe ─────────────────────────────────────────────── */
   {
     slug: "health-body",
     name: "Health & Body",
@@ -470,7 +231,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "suc-khoe",
     level: "B1",
     total: 20,
-    learned: 0,
     accent: "bg-pink-500",
     words: [
       { en: "symptom", ipa: "/ˈsɪmp.təm/", type: "n", vi: "triệu chứng" },
@@ -495,8 +255,6 @@ export const vocabSets: VocabSet[] = [
       { en: "well-being", ipa: "/ˌwel ˈbiː.ɪŋ/", type: "n", vi: "sự khỏe mạnh, hạnh phúc" },
     ],
   },
-
-  /* ── 7. Gia đình ─────────────────────────────────────────────── */
   {
     slug: "family-relationships",
     name: "Family & Friends",
@@ -505,7 +263,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "gia-dinh",
     level: "A2",
     total: 20,
-    learned: 0,
     accent: "bg-sky-500",
     words: [
       { en: "sibling", ipa: "/ˈsɪb.lɪŋ/", type: "n", vi: "anh chị em ruột" },
@@ -530,8 +287,6 @@ export const vocabSets: VocabSet[] = [
       { en: "inheritance", ipa: "/ɪnˈher.ɪ.təns/", type: "n", vi: "tài sản thừa kế" },
     ],
   },
-
-  /* ── 8. Công nghệ ────────────────────────────────────────────── */
   {
     slug: "technology-basics",
     name: "Technology Basics",
@@ -540,7 +295,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "cong-nghe",
     level: "B1",
     total: 20,
-    learned: 0,
     accent: "bg-indigo-600",
     words: [
       { en: "device", ipa: "/dɪˈvaɪs/", type: "n", vi: "thiết bị" },
@@ -565,8 +319,6 @@ export const vocabSets: VocabSet[] = [
       { en: "troubleshoot", ipa: "/ˈtrʌb.əl.ʃuːt/", type: "v", vi: "khắc phục sự cố" },
     ],
   },
-
-  /* ── 9. Giải trí ─────────────────────────────────────────────── */
   {
     slug: "entertainment",
     name: "Entertainment",
@@ -575,7 +327,6 @@ export const vocabSets: VocabSet[] = [
     topicId: "giai-tri",
     level: "A2",
     total: 20,
-    learned: 0,
     accent: "bg-rose-500",
     words: [
       { en: "genre", ipa: "/ˈʒɑːn.rə/", type: "n", vi: "thể loại (phim, nhạc)" },
@@ -601,3 +352,30 @@ export const vocabSets: VocabSet[] = [
     ],
   },
 ]
+
+/* ------------------------------------------------------------------ */
+/*  Seed function                                                     */
+/* ------------------------------------------------------------------ */
+
+async function seed() {
+  console.log("🚀 Bắt đầu seed 9 bộ từ vựng vào Firestore...\n")
+
+  const colRef = collection(db, "vocabSets")
+
+  for (const setData of vocabSetsData) {
+    const docRef = doc(colRef, setData.slug)
+    await setDoc(docRef, {
+      ...setData,
+      createdAt: new Date().toISOString(),
+    })
+    console.log(`  ✅ ${setData.slug} — ${setData.words.length} từ`)
+  }
+
+  console.log(`\n🎉 Hoàn tất! Đã seed ${vocabSetsData.length} bộ từ vựng.`)
+  process.exit(0)
+}
+
+seed().catch((err) => {
+  console.error("❌ Lỗi khi seed:", err)
+  process.exit(1)
+})

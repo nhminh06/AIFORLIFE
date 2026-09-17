@@ -1,27 +1,86 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ArrowLeft, ArrowRight, BookOpenText, CheckCircle2 } from "lucide-react"
+import { useParams } from "next/navigation"
+import { ArrowLeft, ArrowRight, BookMarked, BookOpenText, CheckCircle2, Loader2 } from "lucide-react"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { StudyStatsCard } from "@/components/dashboard/study-stats-card"
 import { VocabWordRow } from "@/components/vocab/vocab-word-row"
-import { getVocabTopic, levelClass, vocabSets } from "@/lib/data/vocabulary"
+import { useAuth } from "@/lib/auth-context"
+import { getSetIcon } from "@/lib/data/set-icons"
+import { getVocabTopicForSet, levelClass, type VocabSet } from "@/lib/data/vocabulary"
+import { getVocabSetBySlug } from "@/lib/vocab-service"
 
-export function generateStaticParams() {
-  return vocabSets.map((s) => ({ slug: s.slug }))
-}
+export default function TuVungDetailPage() {
+  const params = useParams<{ slug: string }>()
+  const slug = params.slug
+  const { user } = useAuth()
 
-type Props = { params: Promise<{ slug: string }> }
+  const [set, setSet] = useState<VocabSet | null>(null)
+  const [loading, setLoading] = useState(true)
 
-export default async function TuVungDetailPage({ params }: Props) {
-  const { slug } = await params
-  const set = vocabSets.find((s) => s.slug === slug)
-  if (!set) notFound()
+  const uid = user?.uid
 
-  const topic = getVocabTopic(set.topicId)
-  const TopicIcon = topic.icon
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    ;(async () => {
+      try {
+        // Ưu tiên bộ từ cá nhân của user đang đăng nhập
+        const data = await getVocabSetBySlug(slug, uid)
+        if (!cancelled) setSet(data)
+      } catch {
+        // fallback handled inside service
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [slug, uid])
+
+  if (loading) {
+    return (
+      <SiteShell>
+        <div className="flex flex-col items-center justify-center py-24">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <p className="mt-4 text-sm font-medium text-slate-500">Đang tải bộ từ vựng…</p>
+        </div>
+      </SiteShell>
+    )
+  }
+
+  if (!set) {
+    return (
+      <SiteShell>
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+            <BookOpenText className="h-7 w-7" />
+          </span>
+          <p className="mt-4 text-lg font-bold text-slate-900">Không tìm thấy bộ từ vựng</p>
+          <p className="mt-1 text-sm text-slate-500">Bộ từ này không tồn tại hoặc đã bị xóa.</p>
+          <Link
+            href="/tu-vung"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Quay lại
+          </Link>
+        </div>
+      </SiteShell>
+    )
+  }
+
+  const topic = getVocabTopicForSet(set)
+  const TopicIcon = getSetIcon(set.icon) ?? topic.icon
   const percent = set.total === 0 ? 0 : Math.round((set.learned / set.total) * 100)
+  /** bộ từ này do chính user đang đăng nhập tạo */
+  const isMine = Boolean(uid && set.ownerId && set.ownerId === uid)
+
+  /* Hiển thị toàn bộ từ của bộ — phân trang chỉ ở danh sách bộ từ */
+  const totalWords = set.words.length
 
   return (
     <SiteShell>
@@ -37,12 +96,20 @@ export default async function TuVungDetailPage({ params }: Props) {
         <PageHeading
           icon={TopicIcon}
           title={set.name}
-          desc={`${set.vi} · ${set.words.length} từ mẫu trong bài này`}
+          desc={`${set.vi} · ${set.words.length} từ trong bài này`}
           bubbleClass={topic.iconClass}
         >
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${levelClass[set.level]}`}>
-            {set.level}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {isMine && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
+                <BookMarked className="h-3.5 w-3.5" />
+                Bộ từ của bạn
+              </span>
+            )}
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${levelClass[set.level]}`}>
+              {set.level}
+            </span>
+          </div>
         </PageHeading>
       </div>
 
@@ -64,11 +131,21 @@ export default async function TuVungDetailPage({ params }: Props) {
             </p>
           </div>
 
-          <ul className="mt-4 space-y-3">
-            {set.words.map((w) => (
-              <VocabWordRow key={w.en} word={w} />
-            ))}
-          </ul>
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <p className="text-xs font-semibold text-slate-500">
+                {totalWords === 0
+                  ? "Bộ từ này chưa có từ vựng nào"
+                  : `${totalWords} từ trong bộ`}
+              </p>
+            </div>
+
+            <ul className="mt-3 space-y-3">
+              {set.words.map((w, i) => (
+                <VocabWordRow key={`${w.en}-${i}`} word={w} />
+              ))}
+            </ul>
+          </div>
 
           <Link
             href="/luyen-tap"

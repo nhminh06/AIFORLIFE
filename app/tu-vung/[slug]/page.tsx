@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, ArrowRight, BookMarked, BookOpenText, CheckCircle2, Loader2 } from "lucide-react"
+import { ArrowLeft, ArrowRight, BookMarked, BookOpenText, CheckCircle2, GraduationCap, Loader2, RotateCcw } from "lucide-react"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
@@ -13,6 +13,7 @@ import { VocabWordRow } from "@/components/vocab/vocab-word-row"
 import { useAuth } from "@/lib/auth-context"
 import { getSetIcon } from "@/lib/data/set-icons"
 import { getVocabTopicForSet, levelClass, type VocabSet } from "@/lib/data/vocabulary"
+import { loadVocabProgress, markVocabLearned, unmarkVocabLearned } from "@/lib/vocab-progress"
 import { getVocabSetBySlug } from "@/lib/vocab-service"
 
 /** Số từ vựng hiển thị trên mỗi trang của bộ từ */
@@ -56,6 +57,11 @@ export default function TuVungDetailPage() {
     setPage(1)
   }, [slug])
 
+  /* Nạp tiến độ đã thuộc từ localStorage (theo slug + uid) */
+  useEffect(() => {
+    setLearnedWords(loadVocabProgress(slug, uid))
+  }, [slug, uid])
+
   if (loading) {
     return (
       <SiteShell>
@@ -90,7 +96,9 @@ export default function TuVungDetailPage() {
 
   const topic = getVocabTopicForSet(set)
   const TopicIcon = getSetIcon(set.icon) ?? topic.icon
-  const percent = set.total === 0 ? 0 : Math.round((set.learned / set.total) * 100)
+  /* Tiến độ thật = số từ đã thuộc trong localStorage, không dùng set.learned tĩnh */
+  const learnedCount = set.words.filter((w) => learnedWords.has(w.en.toLowerCase())).length
+  const percent = set.total === 0 ? 0 : Math.round((learnedCount / set.total) * 100)
   /** bộ từ này do chính user đang đăng nhập tạo */
   const isMine = Boolean(uid && set.ownerId && set.ownerId === uid)
 
@@ -120,6 +128,13 @@ export default function TuVungDetailPage() {
       else next.delete(key)
       return next
     })
+  }
+
+  /** Đánh dấu đã thuộc + lưu localStorage để trang Học/Ôn tập dùng chung */
+  const handleLearnedChange = (wordKey: string, on: boolean) => {
+    toggleInSet(setLearnedWords, wordKey, on)
+    if (on) markVocabLearned(slug, uid, wordKey)
+    else unmarkVocabLearned(slug, uid, wordKey)
   }
 
   return (
@@ -167,8 +182,25 @@ export default function TuVungDetailPage() {
               <div className={`h-full rounded-full ${set.accent}`} style={{ width: `${percent}%` }} />
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              Đã học {set.learned}/{set.total} từ trong bộ này. Tiếp tục cố gắng nhé!
+              Đã học {learnedCount}/{set.total} từ trong bộ này. Tiếp tục cố gắng nhé!
             </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Link
+              href={"/tu-vung/" + slug + "/hoc"}
+              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-green-600/25 transition-all hover:bg-green-700"
+            >
+              <GraduationCap className="h-4 w-4" />
+              Học từ mới
+            </Link>
+            <Link
+              href={"/tu-vung/" + slug + "/on-tap"}
+              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Ôn tập ({learnedCount} đã thuộc)
+            </Link>
           </div>
 
           <div ref={listTopRef} className="mt-4 scroll-mt-24">
@@ -193,7 +225,7 @@ export default function TuVungDetailPage() {
                     key={`${w.en}-${pageOffset + i}`}
                     word={w}
                     learned={learnedWords.has(wordKey)}
-                    onLearnedChange={(on) => toggleInSet(setLearnedWords, wordKey, on)}
+                    onLearnedChange={(on) => handleLearnedChange(wordKey, on)}
                     liked={likedWords.has(wordKey)}
                     onLikedChange={(on) => toggleInSet(setLikedWords, wordKey, on)}
                   />

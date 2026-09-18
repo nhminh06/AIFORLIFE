@@ -4,22 +4,25 @@ import Link from "next/link"
 import { getSetIcon } from "@/lib/data/set-icons"
 import { getVocabTopicForSet, levelClass, type VocabSet } from "@/lib/data/vocabulary"
 
-function pct(set: VocabSet) {
-  return set.total === 0 ? 0 : Math.round((set.learned / set.total) * 100)
-}
-
 type VocabSetCardProps = {
   set: VocabSet
+  /**
+   * Số từ đã thuộc thật (tính từ localStorage, đồng bộ với trang Học).
+   * Không truyền sẽ fallback về set.learned tĩnh.
+   */
+  learnedCount?: number
   /** chỉ truyền cho bộ từ cá nhân — hiện nút xóa ở góc dưới bên phải */
   onDelete?: () => void
   /** đang xóa bộ từ này */
   deleting?: boolean
 }
 
-export function VocabSetCard({ set, onDelete, deleting = false }: VocabSetCardProps) {
+export function VocabSetCard({ set, learnedCount, onDelete, deleting = false }: VocabSetCardProps) {
   const topic = getVocabTopicForSet(set)
   const TopicIcon = getSetIcon(set.icon) ?? topic.icon
-  const percent = pct(set)
+  const learned = learnedCount ?? set.learned
+  const total = set.total || set.words.length
+  const percent = total === 0 ? 0 : Math.round((learned / total) * 100)
 
   return (
     <div className="relative">
@@ -50,7 +53,7 @@ export function VocabSetCard({ set, onDelete, deleting = false }: VocabSetCardPr
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
             <span className="text-slate-400">
-              {set.learned}/{set.total} từ
+              {learned}/{total} từ
             </span>
             <span className="text-slate-700">{percent}%</span>
           </div>

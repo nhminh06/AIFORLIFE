@@ -9,10 +9,10 @@ import { SiteFooter } from "@/components/dashboard/site-footer"
 
 export default function Page() {
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <SiteHeader />
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <HeroBanner />
 
         <div className="mt-6">

@@ -10,6 +10,7 @@ import {
   vocabTopics,
   type VocabSet,
 } from "@/lib/data/vocabulary"
+import { loadVocabProgress } from "@/lib/vocab-progress"
 import { deleteMyVocabSet, getMyVocabSets } from "@/lib/user-vocab"
 import { getAllVocabSets } from "@/lib/vocab-service"
 
@@ -74,6 +75,30 @@ export function VocabExplorer() {
 
   /* Bộ từ của bạn xếp trước, rồi tới các bộ có sẵn */
   const sets = useMemo(() => [...mySets, ...systemSets], [mySets, systemSets])
+
+  /* Tiến độ thật của từng bộ từ, đọc từ localStorage (đồng bộ với trang Học).
+     Cập nhật lại khi quay lại tab này / sẵn sàng dữ liệu để card không hiện 0% sai. */
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const recalc = () => {
+      const uid = user?.uid ?? null
+      const map: Record<string, number> = {}
+      for (const s of sets) {
+        const learned = loadVocabProgress(s.slug, uid)
+        map[s.slug] = s.words.filter((w) => learned.has(w.en.toLowerCase())).length
+      }
+      setProgressMap(map)
+    }
+    recalc()
+    window.addEventListener("focus", recalc)
+    document.addEventListener("visibilitychange", recalc)
+    return () => {
+      window.removeEventListener("focus", recalc)
+      document.removeEventListener("visibilitychange", recalc)
+    }
+  }, [sets, user?.uid])
 
   /* Bộ lọc chủ đề = chủ đề hệ thống + chủ đề riêng do user đã tạo */
   const topics = useMemo(() => [...vocabTopics, ...customVocabTopicsFromSets(mySets)], [mySets])
@@ -205,6 +230,7 @@ export function VocabExplorer() {
               <VocabSetCard
                 key={s.slug}
                 set={s}
+                learnedCount={progressMap[s.slug] ?? s.learned}
                 onDelete={user && s.ownerId === user.uid ? () => handleDelete(s) : undefined}
                 deleting={deletingSlug === s.slug}
               />

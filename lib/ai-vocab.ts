@@ -7,6 +7,7 @@ import type { VocabLevel, VocabWord } from "@/lib/data/vocabulary"
 
 const FILL_URL = "/api/ai/vocab/fill"
 const GENERATE_URL = "/api/ai/vocab/generate"
+const EXAMPLE_URL = "/api/ai/vocab/example"
 
 async function postJSON<T>(url: string, payload: unknown): Promise<T> {
   let res: Response
@@ -78,4 +79,17 @@ export type AiGenerateVocabInput = {
 export async function aiGenerateVocabWords(input: AiGenerateVocabInput): Promise<VocabWord[]> {
   const data = await postJSON<{ words?: VocabWord[] }>(GENERATE_URL, input)
   return Array.isArray(data.words) ? data.words : []
+}
+
+export type AiVocabExampleInput = {
+  en: string
+  ipa?: string
+  type?: VocabWord["type"]
+  vi?: string
+}
+
+/** Nhờ AI tạo 1 câu ví dụ minh hoạ cho 1 từ cụ thể. */
+export async function aiVocabExample(input: AiVocabExampleInput): Promise<string> {
+  const data = await postJSON<{ example?: string }>(EXAMPLE_URL, input)
+  return typeof data.example === "string" ? data.example.trim() : ""
 }

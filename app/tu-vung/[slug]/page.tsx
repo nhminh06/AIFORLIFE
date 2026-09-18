@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { ArrowLeft, ArrowRight, BookMarked, BookOpenText, CheckCircle2, Loader2 } from "lucide-react"
@@ -8,11 +8,15 @@ import { ArrowLeft, ArrowRight, BookMarked, BookOpenText, CheckCircle2, Loader2 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { StudyStatsCard } from "@/components/dashboard/study-stats-card"
+import { VocabPagination } from "@/components/vocab/vocab-pagination"
 import { VocabWordRow } from "@/components/vocab/vocab-word-row"
 import { useAuth } from "@/lib/auth-context"
 import { getSetIcon } from "@/lib/data/set-icons"
 import { getVocabTopicForSet, levelClass, type VocabSet } from "@/lib/data/vocabulary"
 import { getVocabSetBySlug } from "@/lib/vocab-service"
+
+/** Số từ vựng hiển thị trên mỗi trang của bộ từ */
+const WORDS_PER_PAGE = 8
 
 export default function TuVungDetailPage() {
   const params = useParams<{ slug: string }>()
@@ -21,8 +25,14 @@ export default function TuVungDetailPage() {
 
   const [set, setSet] = useState<VocabSet | null>(null)
   const [loading, setLoading] = useState(true)
+  /** trang hiện tại của danh sách từ (mỗi trang WORDS_PER_PAGE từ) */
+  const [page, setPage] = useState(1)
+  /** từ đã đánh dấu thuộc / yêu thích — giữ nguyên khi đổi trang */
+  const [learnedWords, setLearnedWords] = useState<Set<string>>(new Set())
+  const [likedWords, setLikedWords] = useState<Set<string>>(new Set())
 
   const uid = user?.uid
+  const listTopRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -40,6 +50,11 @@ export default function TuVungDetailPage() {
     })()
     return () => { cancelled = true }
   }, [slug, uid])
+
+  /* Đổi bộ từ → quay lại trang đầu của danh sách từ */
+  useEffect(() => {
+    setPage(1)
+  }, [slug])
 
   if (loading) {
     return (
@@ -79,8 +94,33 @@ export default function TuVungDetailPage() {
   /** bộ từ này do chính user đang đăng nhập tạo */
   const isMine = Boolean(uid && set.ownerId && set.ownerId === uid)
 
-  /* Hiển thị toàn bộ từ của bộ — phân trang chỉ ở danh sách bộ từ */
+  /* Danh sách từ của bộ: phân trang WORDS_PER_PAGE từ mỗi trang */
   const totalWords = set.words.length
+  const totalPages = Math.max(1, Math.ceil(totalWords / WORDS_PER_PAGE))
+  const currentPage = Math.min(page, totalPages)
+  const pageOffset = (currentPage - 1) * WORDS_PER_PAGE
+  const pagedWords = set.words.slice(pageOffset, pageOffset + WORDS_PER_PAGE)
+
+  const changePage = (next: number) => {
+    const target = Math.min(Math.max(next, 1), totalPages)
+    if (target === currentPage) return
+    setPage(target)
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  /** Bật/tắt 1 từ trong tập hợp dấu (đã thuộc / yêu thích) */
+  const toggleInSet = (
+    setter: Dispatch<SetStateAction<Set<string>>>,
+    key: string,
+    on: boolean
+  ) => {
+    setter((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }
 
   return (
     <SiteShell>
@@ -131,20 +171,37 @@ export default function TuVungDetailPage() {
             </p>
           </div>
 
-          <div className="mt-4">
+          <div ref={listTopRef} className="mt-4 scroll-mt-24">
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
               <p className="text-xs font-semibold text-slate-500">
                 {totalWords === 0
                   ? "Bộ từ này chưa có từ vựng nào"
                   : `${totalWords} từ trong bộ`}
               </p>
+              {totalPages > 1 && (
+                <p className="text-xs font-semibold text-slate-500">
+                  Trang {currentPage}/{totalPages}
+                </p>
+              )}
             </div>
 
             <ul className="mt-3 space-y-3">
-              {set.words.map((w, i) => (
-                <VocabWordRow key={`${w.en}-${i}`} word={w} />
-              ))}
+              {pagedWords.map((w, i) => {
+                const wordKey = w.en.toLowerCase()
+                return (
+                  <VocabWordRow
+                    key={`${w.en}-${pageOffset + i}`}
+                    word={w}
+                    learned={learnedWords.has(wordKey)}
+                    onLearnedChange={(on) => toggleInSet(setLearnedWords, wordKey, on)}
+                    liked={likedWords.has(wordKey)}
+                    onLikedChange={(on) => toggleInSet(setLikedWords, wordKey, on)}
+                  />
+                )
+              })}
             </ul>
+
+            <VocabPagination page={currentPage} totalPages={totalPages} onChange={changePage} />
           </div>
 
           <Link

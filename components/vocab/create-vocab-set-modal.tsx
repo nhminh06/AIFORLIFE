@@ -10,9 +10,9 @@ import {
   ChevronRight,
   ImagePlus,
   Loader2,
-  Lock,
   Pencil,
   Plus,
+  RefreshCw,
   Save,
   Sparkles,
   Tag,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
+import { aiFillVocabWords, aiGenerateVocabWords } from "@/lib/ai-vocab"
 import {
   customTopicColorKeys,
   customTopicColors,
@@ -38,6 +39,7 @@ import { createMyVocabSet, makeCustomTopicId } from "@/lib/user-vocab"
 import { getSetIcon, setIconOptions } from "@/lib/data/set-icons"
 import { cn } from "@/lib/utils"
 
+import { VocabPagination } from "./vocab-pagination"
 import { VocabWordEditor, emptyWord } from "./vocab-word-editor"
 
 /** Màu thanh tiến độ cho bộ từ mới */
@@ -62,6 +64,15 @@ type TopicMode = "existing" | "new"
 
 /** số chủ đề hiển thị mỗi trang trong phần chọn chủ đề */
 const TOPICS_PER_PAGE = 9
+
+/** các mức số lượng từ cho phép chọn khi nhờ AI sinh từ */
+const AI_COUNT_OPTIONS = [5, 10, 15, 20, 30]
+
+/** giá trị giả trong select chủ đề của tab AI — tương ứng "tạo chủ đề mới" */
+const NEW_TOPIC_VALUE = "__new-topic__"
+
+/** số từ hiển thị mỗi trang trong danh sách từ do AI gợi ý */
+const AI_PREVIEW_PER_PAGE = 8
 
 type CreateVocabSetModalProps = {
   onClose: () => void
@@ -96,8 +107,25 @@ export function CreateVocabSetModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedSet, setSavedSet] = useState<VocabSet | null>(null)
+  /** cảnh báo khi AI không bổ sung được nhưng bộ từ vẫn được lưu */
+  const [saveWarning, setSaveWarning] = useState<string | null>(null)
+
+  /* Trạng thái cho việc nhờ AI bổ sung phiên âm / từ loại / nghĩa */
+  const [fillingIndex, setFillingIndex] = useState<number | null>(null)
+  const [fillingAll, setFillingAll] = useState(false)
+
+  /* Trạng thái cho tab tạo bộ từ bằng AI */
+  const [aiPrompt, setAiPrompt] = useState("")
+  const [aiNotes, setAiNotes] = useState("")
+  const [aiCount, setAiCount] = useState(15)
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiWords, setAiWords] = useState<VocabWord[]>([])
+  /** trang hiện tại của danh sách từ AI gợi ý (mỗi trang AI_PREVIEW_PER_PAGE từ) */
+  const [aiPage, setAiPage] = useState(1)
 
   const nameRef = useRef<HTMLInputElement>(null)
+  /** vùng danh sách từ AI — dùng để cuộn lên đầu khi đổi trang */
+  const aiListTopRef = useRef<HTMLUListElement | null>(null)
 
   /* Danh sách chủ đề để chọn: có sẵn + chủ đề riêng user đã tạo */
   const allTopics: VocabTopic[] = [...vocabTopics, ...customTopics]
@@ -142,6 +170,104 @@ export function CreateVocabSetModal({
 
   const addWord = () => setWords((prev) => [...prev, { ...emptyWord }])
 
+  const switchTab = (next: Tab) => {
+    setTab(next)
+    setError(null)
+  }
+
+  /* Nhãn chủ đề đang chọn (tiếng Việt) — dùng làm ngữ cảnh cho AI */
+  const currentTopicLabel = () => {
+    if (topicMode === "new") return newTopicLabel.trim() || "Chủ đề tự chọn"
+    return allTopics.find((t) => t.id === topicId)?.label ?? "Từ vựng thông dụng"
+  }
+
+  /**
+   * Quy đổi lựa chọn chủ đề (có sẵn / chủ đề riêng đã tạo / chủ đề mới) thành dữ liệu lưu.
+   * Trả về null khi người dùng chọn "tạo chủ đề mới" nhưng chưa nhập tên.
+   */
+  const resolveTopicField = () => {
+    if (topicMode === "new") {
+      const label = newTopicLabel.trim()
+      if (!label) return null
+      return { topicId: makeCustomTopicId(label), topicLabel: label, topicColor: newTopicColor }
+    }
+
+    const selected = allTopics.find((t) => t.id === topicId)
+    if (selected && !isBuiltInVocabTopic(selected.id)) {
+      return {
+        topicId: selected.id,
+        topicLabel: selected.label,
+        topicColor: selected.customColor ?? "blue",
+      }
+    }
+    return { topicId }
+  }
+
+  /** Từ còn thiếu phiên âm hoặc nghĩa → cần AI bổ sung */
+  const needsAiFill = (w: VocabWord) => w.en.trim().length > 0 && (!w.ipa.trim() || !w.vi.trim())
+
+  /** Nhờ AI bổ sung phiên âm / từ loại / nghĩa cho đúng 1 dòng */
+  const fillWord = async (i: number) => {
+    const target = words[i]
+    if (!target?.en.trim()) return
+
+    setFillingIndex(i)
+    setError(null)
+    try {
+      const [filled] = await aiFillVocabWords(
+        [{ en: target.en, ipa: target.ipa, vi: target.vi }],
+        { topic: currentTopicLabel(), level }
+      )
+      if (filled) setWords((prev) => prev.map((w, idx) => (idx === i ? filled : w)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không bổ sung được từ này.")
+    } finally {
+      setFillingIndex(null)
+    }
+  }
+
+  /** Nhờ AI bổ sung tất cả các từ còn thiếu, giữ nguyên thứ tự người dùng đã nhập */
+  const fillMissingWords = async (list: VocabWord[]): Promise<VocabWord[]> => {
+    const pending = list.filter(needsAiFill)
+    if (pending.length === 0) return list
+
+    const filled = await aiFillVocabWords(
+      pending.map((w) => ({ en: w.en, ipa: w.ipa, vi: w.vi })),
+      { topic: currentTopicLabel(), level }
+    )
+
+    const byWord = new Map(filled.map((w) => [w.en.toLowerCase(), w]))
+    return list.map((w) => {
+      if (!needsAiFill(w)) return w
+      const next = byWord.get(w.en.trim().toLowerCase())
+      if (!next) return w
+      return {
+        ...w,
+        ipa: w.ipa.trim() || next.ipa,
+        vi: w.vi.trim() || next.vi,
+        type: next.type,
+      }
+    })
+  }
+
+  /** Nút "AI bổ sung tất cả" ở tab thủ công */
+  const handleFillAll = async () => {
+    if (filledWords.length === 0) {
+      setError("Vui lòng nhập ít nhất 1 từ tiếng Anh trước khi nhờ AI bổ sung.")
+      return
+    }
+
+    setFillingAll(true)
+    setError(null)
+    try {
+      setWords(await fillMissingWords(words))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không bổ sung được từ vựng.")
+    } finally {
+      setFillingAll(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -159,37 +285,30 @@ export function CreateVocabSetModal({
       setError("Vui lòng thêm ít nhất 1 từ vựng có tiếng Anh.")
       return
     }
-    if (filledWords.some((w) => !w.vi.trim())) {
-      setError("Vui lòng nhập nghĩa tiếng Việt cho tất cả các từ.")
+
+    const topicField = resolveTopicField()
+    if (!topicField) {
+      setError("Vui lòng nhập tên chủ đề mới.")
       return
     }
 
-    /* Chủ đề: có sẵn, chủ đề riêng đã tạo trước đó, hoặc chủ đề mới hoàn toàn */
-    const selectedTopic = allTopics.find((t) => t.id === topicId)
-    let topicField: { topicId: string; topicLabel?: string; topicColor?: CustomTopicColor }
-
-    if (topicMode === "new") {
-      if (!newTopicLabel.trim()) {
-        setError("Vui lòng nhập tên chủ đề mới.")
-        return
-      }
-      topicField = {
-        topicId: makeCustomTopicId(newTopicLabel),
-        topicLabel: newTopicLabel,
-        topicColor: newTopicColor,
-      }
-    } else if (selectedTopic && !isBuiltInVocabTopic(selectedTopic.id)) {
-      topicField = {
-        topicId: selectedTopic.id,
-        topicLabel: selectedTopic.label,
-        topicColor: selectedTopic.customColor ?? "blue",
-      }
-    } else {
-      topicField = { topicId }
-    }
-
     setSaving(true)
+    setSaveWarning(null)
     try {
+      /* Người dùng chỉ cần nhập từ tiếng Anh → AI tự bổ sung phiên âm, từ loại, nghĩa */
+      let completeWords = filledWords
+      let warning: string | null = null
+
+      if (filledWords.some(needsAiFill)) {
+        try {
+          completeWords = await fillMissingWords(filledWords)
+        } catch (err) {
+          console.error("[create-vocab-set] AI không bổ sung được từ vựng:", err)
+          warning =
+            "AI chưa bổ sung được phiên âm/nghĩa, bộ từ được lưu với phần bạn đã nhập. Bạn có thể mở lại bộ từ để chỉnh sửa sau."
+        }
+      }
+
       const created = await createMyVocabSet(user.uid, {
         name,
         vi,
@@ -198,9 +317,10 @@ export function CreateVocabSetModal({
         level,
         accent,
         icon: setIcon,
-        words: filledWords,
+        words: completeWords,
         source: "manual",
       })
+      setSaveWarning(warning)
       setSavedSet(created)
       onCreated(created)
     } catch (err) {
@@ -211,8 +331,130 @@ export function CreateVocabSetModal({
     }
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Tab "Tạo bằng AI": sinh từ theo số lượng + cấp độ + chủ đề        */
+  /* ------------------------------------------------------------------ */
+
+  const updateAiWord = (i: number, next: VocabWord) =>
+    setAiWords((prev) => prev.map((w, idx) => (idx === i ? next : w)))
+
+  const removeAiWord = (i: number) => setAiWords((prev) => prev.filter((_, idx) => idx !== i))
+
+  /** Thêm 1 dòng trống vào cuối danh sách và nhảy tới trang chứa dòng đó */
+  const addAiWord = () => {
+    const nextLength = aiWords.length + 1
+    setAiWords((prev) => [...prev, { ...emptyWord }])
+    setAiPage(Math.max(1, Math.ceil(nextLength / AI_PREVIEW_PER_PAGE)))
+  }
+
+  /** Gọi AI sinh danh sách từ theo lựa chọn của người dùng */
+  const handleGenerate = async () => {
+    if (!user) {
+      setError("Bạn cần đăng nhập để tạo bộ từ vựng cá nhân.")
+      return
+    }
+    if (!name.trim()) {
+      setError("Vui lòng nhập tên bộ từ trước khi nhờ AI tạo từ.")
+      nameRef.current?.focus()
+      return
+    }
+
+    const topicField = resolveTopicField()
+    if (!topicField) {
+      setError("Vui lòng nhập tên chủ đề mới.")
+      return
+    }
+
+    setAiGenerating(true)
+    setError(null)
+    try {
+      const generated = await aiGenerateVocabWords({
+        topicId: topicField.topicId,
+        topicLabel: topicField.topicLabel ?? currentTopicLabel(),
+        prompt: aiPrompt,
+        level,
+        count: aiCount,
+        notes: aiNotes,
+      })
+      setAiWords(generated)
+      /* danh sách mới → xem từ trang đầu */
+      setAiPage(1)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không sinh được từ vựng bằng AI.")
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  /** Lưu bộ từ do AI sinh (đã qua xem trước / chỉnh sửa) */
+  const handleSaveAi = async () => {
+    if (!user) {
+      setError("Bạn cần đăng nhập để lưu bộ từ vựng cá nhân.")
+      return
+    }
+    if (!name.trim()) {
+      setError("Vui lòng nhập tên bộ từ.")
+      nameRef.current?.focus()
+      return
+    }
+
+    const keptWords = aiWords.filter((w) => w.en.trim().length > 0)
+    if (keptWords.length === 0) {
+      setError("Chưa có từ nào để lưu. Hãy nhờ AI tạo danh sách từ trước.")
+      return
+    }
+
+    const topicField = resolveTopicField()
+    if (!topicField) {
+      setError("Vui lòng nhập tên chủ đề mới.")
+      return
+    }
+
+    setSaving(true)
+    setSaveWarning(null)
+    setError(null)
+    try {
+      const created = await createMyVocabSet(user.uid, {
+        name,
+        vi,
+        desc,
+        ...topicField,
+        level,
+        accent,
+        icon: setIcon,
+        words: keptWords,
+        source: "ai",
+      })
+      setSavedSet(created)
+      onCreated(created)
+    } catch (err) {
+      console.error("[create-vocab-set] Lỗi khi lưu bộ từ AI:", err)
+      setError("Không lưu được bộ từ. Vui lòng kiểm tra kết nối và thử lại.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /* Danh sách từ AI gợi ý: phân trang AI_PREVIEW_PER_PAGE từ mỗi trang */
+  const aiTotalPages = Math.max(1, Math.ceil(aiWords.length / AI_PREVIEW_PER_PAGE))
+  const aiCurrentPage = Math.min(aiPage, aiTotalPages)
+  const aiPageOffset = (aiCurrentPage - 1) * AI_PREVIEW_PER_PAGE
+  const aiPagedWords = aiWords.slice(aiPageOffset, aiPageOffset + AI_PREVIEW_PER_PAGE)
+
+  const changeAiPage = (next: number) => {
+    const target = Math.min(Math.max(next, 1), aiTotalPages)
+    if (target === aiCurrentPage) return
+    setAiPage(target)
+    aiListTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 py-8 backdrop-blur-[2px] sm:py-12">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:p-6"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -250,6 +492,12 @@ export function CreateVocabSetModal({
             <p className="mt-1 text-sm text-slate-500">
               “{savedSet.name}” với {savedSet.total} từ đã được thêm vào bộ từ của bạn.
             </p>
+            {saveWarning && (
+              <p className="mx-auto mt-4 flex max-w-md items-start gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-3.5 py-2.5 text-left text-xs font-medium text-amber-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {saveWarning}
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
@@ -277,7 +525,7 @@ export function CreateVocabSetModal({
             <div className="flex items-center gap-2 px-5 pt-4 sm:px-6">
               <button
                 type="button"
-                onClick={() => setTab("manual")}
+                onClick={() => switchTab("manual")}
                 aria-pressed={tab === "manual"}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
@@ -291,7 +539,7 @@ export function CreateVocabSetModal({
               </button>
               <button
                 type="button"
-                onClick={() => setTab("ai")}
+                onClick={() => switchTab("ai")}
                 aria-pressed={tab === "ai"}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
@@ -302,9 +550,6 @@ export function CreateVocabSetModal({
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Tạo bằng AI
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                  Sắp ra mắt
-                </span>
               </button>
             </div>
 
@@ -614,14 +859,35 @@ export function CreateVocabSetModal({
                           ({filledWords.length} từ)
                         </span>
                       </p>
-                      <button
-                        type="button"
-                        onClick={addWord}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1.5 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-100"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Thêm từ
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleFillAll}
+                          disabled={fillingAll || saving}
+                          title="AI sẽ tự điền phiên âm, từ loại và nghĩa cho các từ còn thiếu"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3.5 py-1.5 text-xs font-semibold text-purple-600 transition-colors hover:bg-purple-100 disabled:pointer-events-none disabled:opacity-60"
+                        >
+                          {fillingAll ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              AI đang bổ sung…
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3.5 w-3.5" />
+                              AI bổ sung tất cả
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={addWord}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1.5 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-100"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Thêm từ
+                        </button>
+                      </div>
                     </div>
 
                     <ul className="mt-2 space-y-2">
@@ -633,77 +899,239 @@ export function CreateVocabSetModal({
                           onChange={(next) => updateWord(i, next)}
                           onRemove={() => removeWord(i)}
                           canRemove={words.length > 1}
+                          onAutoFill={() => fillWord(i)}
+                          filling={fillingIndex === i}
+                          autoFillEnabled={w.en.trim().length > 0}
                         />
                       ))}
                     </ul>
 
-                    <p className="mt-2 text-[11px] text-slate-400">
-                      Trang chi tiết hiển thị toàn bộ từ trong bộ, bạn có thể thêm bao nhiêu từ cũng
-                      được.
+                    <p className="mt-2 flex items-start gap-1.5 text-[11px] text-slate-400">
+                      <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-purple-400" />
+                      Bạn chỉ cần nhập từ tiếng Anh — phiên âm, từ loại và nghĩa tiếng Việt sẽ được AI
+                      tự bổ sung khi bạn lưu bộ từ.
                     </p>
                   </section>
                 </div>
               </form>
             ) : (
-              /* ── Tab AI: giao diện xem trước, tính năng sẽ bổ sung sau ── */
+              /* ── Tab AI: chọn số lượng + cấp độ + chủ đề để AI ra từ ── */
               <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+                {error && (
+                  <p className="flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 px-3.5 py-2.5 text-xs font-medium text-red-600">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {error}
+                  </p>
+                )}
+
                 <div className="flex items-start gap-3 rounded-2xl border border-purple-100 bg-purple-50 px-4 py-3.5">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white">
                     <Wand2 className="h-4 w-4" />
                   </span>
                   <div>
-                    <p className="text-sm font-bold text-purple-700">
-                      Tạo bộ từ bằng AI đang được hoàn thiện
-                    </p>
+                    <p className="text-sm font-bold text-purple-700">AI tự ra danh sách từ cho bạn</p>
                     <p className="mt-0.5 text-xs leading-relaxed text-purple-600">
-                      Sắp tới bạn chỉ cần mô tả chủ đề, AI sẽ tự sinh danh sách từ kèm phiên âm và
-                      nghĩa tiếng Việt, rồi lưu vào bộ từ cá nhân của bạn.
+                      Chọn số lượng, cấp độ và chủ đề — AI sinh từ kèm phiên âm, từ loại và nghĩa
+                      tiếng Việt. Bạn xem trước, chỉnh sửa rồi lưu vào bộ từ cá nhân.
                     </p>
                   </div>
                 </div>
 
                 <section className="grid gap-3 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
-                    <span className="text-xs font-bold text-slate-700">Chủ đề / yêu cầu</span>
+                    <span className="text-xs font-bold text-slate-700">Tên bộ từ *</span>
                     <input
-                      disabled
-                      placeholder="VD: Từ vựng tiếng Anh về phỏng vấn xin việc cho người mới"
-                      className={`mt-1 cursor-not-allowed opacity-60 ${inputClass}`}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="VD: Từ vựng phỏng vấn xin việc"
+                      className={`mt-1 ${inputClass}`}
                     />
                   </label>
+                  <label className="block sm:col-span-2">
+                    <span className="text-xs font-bold text-slate-700">Yêu cầu cho AI</span>
+                    <textarea
+                      rows={2}
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="VD: Từ vựng tiếng Anh về phỏng vấn xin việc cho người mới, ưu tiên từ thông dụng"
+                      className={`mt-1 resize-none ${inputClass}`}
+                    />
+                  </label>
+
                   <label className="block">
                     <span className="text-xs font-bold text-slate-700">Số lượng từ</span>
-                    <select disabled className={`mt-1 cursor-not-allowed opacity-60 ${inputClass}`}>
-                      <option>10 từ</option>
-                      <option>15 từ</option>
-                      <option>20 từ</option>
-                      <option>30 từ</option>
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-bold text-slate-700">Chủ đề (topic)</span>
-                    <select disabled className={`mt-1 cursor-not-allowed opacity-60 ${inputClass}`}>
-                      {vocabTopics.map((t) => (
-                        <option key={t.id}>{t.label}</option>
+                    <select
+                      value={aiCount}
+                      onChange={(e) => setAiCount(Number(e.target.value))}
+                      className={`mt-1 ${inputClass}`}
+                    >
+                      {AI_COUNT_OPTIONS.map((n) => (
+                        <option key={n} value={n}>
+                          {n} từ
+                        </option>
                       ))}
                     </select>
                   </label>
+
+                  <label className="block">
+                    <span className="text-xs font-bold text-slate-700">Cấp độ (CEFR)</span>
+                    <select
+                      value={level}
+                      onChange={(e) => setLevel(e.target.value as VocabLevel)}
+                      className={`mt-1 ${inputClass}`}
+                    >
+                      {vocabLevels.map((l) => (
+                        <option key={l} value={l}>
+                          {vocabLevelLabels[l]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block sm:col-span-2">
+                    <span className="text-xs font-bold text-slate-700">Chủ đề (topic)</span>
+                    <select
+                      value={topicMode === "new" ? NEW_TOPIC_VALUE : topicId}
+                      onChange={(e) => {
+                        if (e.target.value === NEW_TOPIC_VALUE) {
+                          switchTopicMode("new")
+                          return
+                        }
+                        setTopicId(e.target.value)
+                        switchTopicMode("existing")
+                      }}
+                      className={`mt-1 ${inputClass}`}
+                    >
+                      {allTopics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {isBuiltInVocabTopic(t.id) ? t.label : `${t.label} (của tôi)`}
+                        </option>
+                      ))}
+                      <option value={NEW_TOPIC_VALUE}>+ Chủ đề mới…</option>
+                    </select>
+                  </label>
+                  {topicMode === "new" && (
+                    <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:col-span-2">
+                      <input
+                        value={newTopicLabel}
+                        onChange={(e) => setNewTopicLabel(e.target.value)}
+                        placeholder="VD: Phỏng vấn xin việc"
+                        aria-label="Tên chủ đề mới"
+                        className={inputClass}
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-semibold text-slate-500">Màu chủ đề:</span>
+                        {customTopicColorKeys.map((key) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setNewTopicColor(key)}
+                            aria-label={`Chọn màu ${customTopicColors[key].label}`}
+                            aria-pressed={newTopicColor === key}
+                            title={customTopicColors[key].label}
+                            className={cn(
+                              "h-6 w-6 rounded-full transition-all",
+                              customTopicColors[key].iconClass,
+                              newTopicColor === key
+                                ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-slate-900"
+                                : "opacity-70 hover:opacity-100"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <label className="block sm:col-span-2">
                     <span className="text-xs font-bold text-slate-700">Ghi chú thêm</span>
                     <textarea
-                      rows={3}
-                      disabled
+                      rows={2}
+                      value={aiNotes}
+                      onChange={(e) => setAiNotes(e.target.value)}
                       placeholder="VD: ưu tiên từ vựng thông dụng, có ví dụ đặt câu"
-                      className={`mt-1 resize-none cursor-not-allowed opacity-60 ${inputClass}`}
+                      className={`mt-1 resize-none ${inputClass}`}
                     />
                   </label>
                 </section>
 
-                <p className="flex items-center gap-2 text-[11px] text-slate-400">
-                  <Lock className="h-3.5 w-3.5" />
-                  Các ô nhập trên sẽ được mở khi tính năng AI ra mắt. Hiện tại bạn có thể tạo bộ từ
-                  thủ công ở tab bên cạnh.
-                </p>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={aiGenerating}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700 disabled:opacity-60"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      AI đang ra từ…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Ra từ bằng AI
+                    </>
+                  )}
+                </button>
+                {aiWords.length > 0 && (
+                  <section>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-slate-700">
+                        Từ AI gợi ý
+                        <span className="ml-1.5 font-medium text-slate-400">
+                          ({aiWords.length} từ
+                          {aiTotalPages > 1 ? ` · trang ${aiCurrentPage}/${aiTotalPages}` : ""})
+                        </span>
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleGenerate}
+                          disabled={aiGenerating}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3.5 py-1.5 text-xs font-semibold text-purple-600 transition-colors hover:bg-purple-100 disabled:pointer-events-none disabled:opacity-60"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Ra lại
+                        </button>
+                        <button
+                          type="button"
+                          onClick={addAiWord}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Thêm từ
+                        </button>
+                      </div>
+                    </div>
+
+                    <ul ref={aiListTopRef} className="mt-2 scroll-mt-24 space-y-2">
+                      {aiPagedWords.map((w, i) => {
+                        /* chỉ số thật trong toàn bộ danh sách (không phải chỉ số trong trang) */
+                        const globalIndex = aiPageOffset + i
+                        return (
+                          <VocabWordEditor
+                            key={globalIndex}
+                            word={w}
+                            index={globalIndex}
+                            onChange={(next) => updateAiWord(globalIndex, next)}
+                            onRemove={() => removeAiWord(globalIndex)}
+                            canRemove={aiWords.length > 1}
+                          />
+                        )
+                      })}
+                    </ul>
+
+                    <VocabPagination
+                      page={aiCurrentPage}
+                      totalPages={aiTotalPages}
+                      onChange={changeAiPage}
+                    />
+
+                    <p className="mt-2 text-[11px] text-slate-400">
+                      Mỗi trang hiển thị {AI_PREVIEW_PER_PAGE} từ. Bạn có thể sửa trực tiếp từng từ
+                      trước khi lưu — bấm “Lưu bộ từ” ở dưới để thêm vào bộ từ cá nhân.
+                    </p>
+                  </section>
+                )}
               </div>
             )}
 
@@ -742,15 +1170,38 @@ export function CreateVocabSetModal({
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  disabled
-                  title="Tính năng AI sẽ ra mắt sau"
-                  className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full bg-purple-600/50 px-5 py-2.5 text-sm font-semibold text-white/90"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Tạo bằng AI — Sắp ra mắt
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveAi}
+                    disabled={saving || aiGenerating || aiWords.length === 0}
+                    title={
+                      aiWords.length === 0
+                        ? "Hãy nhờ AI ra từ trước khi lưu"
+                        : "Lưu bộ từ vào tài khoản của bạn"
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700 disabled:opacity-60"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Đang lưu…
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Lưu bộ từ
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           </>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Trash2 } from "lucide-react"
+import { Loader2, Sparkles, Trash2 } from "lucide-react"
 
 import type { VocabWord } from "@/lib/data/vocabulary"
 
@@ -26,10 +26,34 @@ type VocabWordEditorProps = {
   onRemove: () => void
   /** cho phép xóa dòng hay không (luôn giữ tối thiểu 1 dòng) */
   canRemove: boolean
+  /**
+   * Nhờ AI bổ sung phiên âm / từ loại / nghĩa cho riêng từ này.
+   * Không truyền → ẩn nút.
+   */
+  onAutoFill?: () => void
+  /** đang chờ AI trả kết quả cho từ này */
+  filling?: boolean
+  /** có bật được nút AI hay không (cần có từ tiếng Anh trước) */
+  autoFillEnabled?: boolean
 }
 
-export function VocabWordEditor({ word, index, onChange, onRemove, canRemove }: VocabWordEditorProps) {
+export function VocabWordEditor({
+  word,
+  index,
+  onChange,
+  onRemove,
+  canRemove,
+  onAutoFill,
+  filling = false,
+  autoFillEnabled = true,
+}: VocabWordEditorProps) {
   const set = (patch: Partial<VocabWord>) => onChange({ ...word, ...patch })
+
+  /* Các phần AI có thể bổ sung giúp người dùng */
+  const missingParts = [
+    !word.ipa.trim() ? "phiên âm" : "",
+    !word.vi.trim() ? "nghĩa" : "",
+  ].filter(Boolean)
 
   return (
     <li className="rounded-2xl border border-slate-200 bg-white p-3">
@@ -37,16 +61,45 @@ export function VocabWordEditor({ word, index, onChange, onRemove, canRemove }: 
         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-[11px] font-bold text-blue-600">
           {index + 1}
         </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={!canRemove}
-          aria-label={`Xóa từ thứ ${index + 1}`}
-          title={canRemove ? "Xóa từ này" : "Cần giữ ít nhất 1 từ"}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:pointer-events-none disabled:opacity-40"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+
+        <div className="flex items-center gap-1">
+          {onAutoFill && (
+            <button
+              type="button"
+              onClick={onAutoFill}
+              disabled={!autoFillEnabled || filling}
+              title={
+                autoFillEnabled
+                  ? "Nhờ AI bổ sung phiên âm, từ loại và nghĩa"
+                  : "Nhập từ tiếng Anh trước đã"
+              }
+              className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-600 transition-colors hover:bg-purple-100 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {filling ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Đang điền…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3 w-3" />
+                  AI bổ sung
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={!canRemove}
+            aria-label={`Xóa từ thứ ${index + 1}`}
+            title={canRemove ? "Xóa từ này" : "Cần giữ ít nhất 1 từ"}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.1fr_1fr_auto_1.3fr]">
@@ -66,7 +119,7 @@ export function VocabWordEditor({ word, index, onChange, onRemove, canRemove }: 
           <input
             value={word.ipa}
             onChange={(e) => set({ ipa: e.target.value })}
-            placeholder="/phiên âm/"
+            placeholder="/phiên âm/ — bỏ trống để AI điền"
             aria-label="Phiên âm"
             className={inputClass}
           />
@@ -93,12 +146,19 @@ export function VocabWordEditor({ word, index, onChange, onRemove, canRemove }: 
           <input
             value={word.vi}
             onChange={(e) => set({ vi: e.target.value })}
-            placeholder="Nghĩa tiếng Việt *"
+            placeholder="Nghĩa tiếng Việt — bỏ trống để AI điền"
             aria-label="Nghĩa tiếng Việt"
             className={inputClass}
           />
         </label>
       </div>
+
+      {missingParts.length > 0 && word.en.trim() && (
+        <p className="mt-1.5 flex items-center gap-1 text-[11px] text-purple-500">
+          <Sparkles className="h-3 w-3" />
+          AI sẽ tự bổ sung {missingParts.join(" và ")} khi bạn lưu bộ từ.
+        </p>
+      )}
     </li>
   )
 }

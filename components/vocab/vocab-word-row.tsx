@@ -16,9 +16,43 @@ const typeClass: Record<VocabWord["type"], string> = {
   phr: "bg-pink-100 text-pink-700",
 }
 
-export function VocabWordRow({ word }: { word: VocabWord }) {
-  const [learned, setLearned] = useState(false)
-  const [liked, setLiked] = useState(false)
+type VocabWordRowProps = {
+  word: VocabWord
+  /**
+   * Trạng thái "đã thuộc" / "yêu thích".
+   * Trang gọi có thể truyền vào để giữ nguyên dấu khi phân trang;
+   * nếu không truyền thì component tự quản lý như trước.
+   */
+  learned?: boolean
+  onLearnedChange?: (learned: boolean) => void
+  liked?: boolean
+  onLikedChange?: (liked: boolean) => void
+}
+
+export function VocabWordRow({
+  word,
+  learned: learnedProp,
+  onLearnedChange,
+  liked: likedProp,
+  onLikedChange,
+}: VocabWordRowProps) {
+  const [learnedLocal, setLearnedLocal] = useState(false)
+  const [likedLocal, setLikedLocal] = useState(false)
+
+  const learned = learnedProp ?? learnedLocal
+  const liked = likedProp ?? likedLocal
+
+  const toggleLearned = () => {
+    const next = !learned
+    setLearnedLocal(next)
+    onLearnedChange?.(next)
+  }
+
+  const toggleLiked = () => {
+    const next = !liked
+    setLikedLocal(next)
+    onLikedChange?.(next)
+  }
 
   return (
     <li className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50 transition-colors sm:flex-row sm:items-center">
@@ -44,7 +78,7 @@ export function VocabWordRow({ word }: { word: VocabWord }) {
         </button>
         <button
           type="button"
-          onClick={() => setLiked((v) => !v)}
+          onClick={toggleLiked}
           aria-label={liked ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
           aria-pressed={liked}
           className={cn(
@@ -56,7 +90,7 @@ export function VocabWordRow({ word }: { word: VocabWord }) {
         </button>
         <button
           type="button"
-          onClick={() => setLearned((v) => !v)}
+          onClick={toggleLearned}
           aria-pressed={learned}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition-colors",

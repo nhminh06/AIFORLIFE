@@ -23,6 +23,7 @@ import { initialNotifications, getReadIds } from "@/lib/notifications"
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { ProfileHero } from "@/components/profile/profile-hero"
+import { DailyVocabCard } from "@/components/profile/daily-vocab-card"
 import { StudySettingsCard } from "@/components/profile/study-settings-card"
 import { AppearanceCard } from "@/components/profile/appearance-card"
 import { BadgesShowcaseCard } from "@/components/profile/badges-showcase-card"
@@ -170,6 +171,13 @@ export default function CaNhanPage() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Daily AI Vocabulary — từ vựng 5 từ/ngày AI tạo */}
+        {(activeTab === "all" || activeTab === "profile") && (
+          <div id="daily-vocab-section">
+            <DailyVocabCard />
           </div>
         )}
 

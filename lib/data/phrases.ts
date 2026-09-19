@@ -15,6 +15,8 @@ export type PhraseSet = {
   vi: string
   desc: string
   situationId: string
+  /** nhãn tình huống tùy chỉnh khi người dùng tự nhập (không thuộc danh sách có sẵn) */
+  situationLabel?: string
   level: "Cơ bản" | "Trung cấp" | "Nâng cao"
   total: number
   learned: number
@@ -37,11 +39,19 @@ export const phraseSituations: PhraseSituation[] = [
   { id: "hotel", label: "Khách sạn & Sân bay", chipClass: "border-sky-200 bg-sky-50 text-sky-700" },
 ]
 
-export function getPhraseSituation(situationId: string): PhraseSituation {
+/**
+ * Lấy tình huống hiển thị theo id.
+ * Nếu id không thuộc danh sách có sẵn (bộ do người dùng tạo với tình huống
+ * tùy chỉnh), dùng nhãn người dùng đã nhập — fallback cuối cùng là "Khác".
+ */
+export function getPhraseSituation(
+  situationId: string,
+  customLabel?: string
+): PhraseSituation {
   return (
     phraseSituations.find((s) => s.id === situationId) ?? {
       id: "khac",
-      label: "Khác",
+      label: customLabel?.trim() || "Khác",
       chipClass: "border-slate-200 bg-slate-50 text-slate-700",
     }
   )
@@ -198,6 +208,31 @@ export const phraseSets: PhraseSet[] = [
       { en: "The air conditioner isn't working.", vi: "Điều hòa không hoạt động." },
       { en: "Where is the baggage claim?", vi: "Khu nhận hành lý ở đâu?" },
       { en: "I'd like to check out. Here's the key.", vi: "Mình trả phòng. Đây là chìa khóa." },
+    ],
+  },
+  {
+    slug: "doctor-pharmacy",
+    name: "Doctor & Pharmacy",
+    vi: "Khám bác sĩ và hiệu thuốc",
+    desc: "Diễn tả tình trạng sức khoẻ, đi khám và mua thuốc khi ở nước ngoài.",
+    situationId: "daily",
+    level: "Trung cấp",
+    total: 38,
+    learned: 5,
+    accent: "bg-green-600",
+    items: [
+      { en: "I'd like to make an appointment, please.", vi: "Mình muốn đặt lịch hẹn khám." },
+      { en: "I've had a sore throat for three days.", vi: "Mình bị đau họng ba ngày rồi." },
+      { en: "Do I need a prescription for this?", vi: "Mua thuốc này cần đơn bác sĩ không?" },
+      { en: "How often should I take this medicine?", vi: "Mình phải uống thuốc này bao lâu một lần?" },
+      { en: "The pain gets worse at night.", vi: "Cơn đau nặng hơn vào ban đêm." },
+      { en: "I'm allergic to penicillin.", vi: "Mình bị dị ứng với thuốc penicillin." },
+      { en: "Is it serious, doctor?", vi: "Bác sĩ ơi, tình trạng có nghiêm trọng không?" },
+      { en: "How long until I feel better?", vi: "Bao lâu thì mình sẽ khoẻ lại?" },
+      { en: "Could you write me a sick note?", vi: "Bác sĩ viết giúp mình giấy nghỉ ốm được không?" },
+      { en: "Where can I get this prescription filled?", vi: "Mình có thể lấy thuốc theo đơn này ở đâu?" },
+      { en: "Take one tablet twice a day after meals.", vi: "Uống một viên, ngày hai lần, sau khi ăn." },
+      { en: "I feel much better now, thank you.", vi: "Giờ mình thấy khoẻ hơn nhiều, cảm ơn bác sĩ." },
     ],
   },
 ]

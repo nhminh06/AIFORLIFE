@@ -7,7 +7,6 @@ export type FormulaRow = {
 }
 
 export type GrammarExample = {
-  /** phần cần highlight đặt trong cặp dấu **, ví dụ: "She **goes** to school." */
   en: string
   vi: string
 }
@@ -18,14 +17,12 @@ export type GrammarTopic = {
   vi: string
   desc: string
   level: GrammarLevel
-  /** % đã học */
   progress: number
   accent: string
   intro: string
   usage: string[]
   formulas: FormulaRow[]
   examples: GrammarExample[]
-  /** id bài tập liên quan trên trang luyện tập */
   practiceId: string
 }
 
@@ -88,7 +85,61 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "I **am meeting** my teacher this afternoon.", vi: "Chiều nay mình sẽ gặp thầy giáo." },
       { en: "**Are** they **coming** to the party tonight?", vi: "Tối nay họ có đến bữa tiệc không?" },
     ],
-    practiceId: "mixed-tenses-quiz",
+    practiceId: "present-continuous-quiz",
+  },
+  {
+    slug: "present-perfect",
+    name: "Present Perfect",
+    vi: "Thì hiện tại hoàn thành",
+    desc: "Nối quá khứ với hiện tại: đã làm gì và kết quả còn lại.",
+    level: "Trung cấp",
+    progress: 20,
+    accent: "bg-purple-600",
+    intro:
+      "Thì hiện tại hoàn thành diễn tả hành động đã xảy ra trong quá khứ nhưng kết quả còn ảnh hưởng đến hiện tại, hoặc hành động vừa mới hoàn thành. Dấu hiệu nhận biết: already, just, ever, never, since, for.",
+    usage: [
+      "Hành động vừa hoàn thành: I have just finished my lunch.",
+      "Kinh nghiệm sống đến hiện tại: She has never been abroad.",
+      "Hành động bắt đầu trong quá khứ và còn tiếp diễn: We have lived here since 2015.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + has/have + V3/ed", example: "He has eaten breakfast." },
+      { use: "Phủ định", structure: "S + has/have + not + V3/ed", example: "I have not seen it." },
+      { use: "Nghi vấn", structure: "Has/Have + S + V3/ed?", example: "Have you ever tried pho?" },
+    ],
+    examples: [
+      { en: "I **have just finished** reading this book.", vi: "Mình vừa mới đọc xong cuốn sách này." },
+      { en: "They **have lived** in this city for ten years.", vi: "Họ đã sống ở thành phố này được mười năm." },
+      { en: "**Have** you **ever traveled** by train?", vi: "Bạn đã bao giờ đi du lịch bằng tàu hỏa chưa?" },
+    ],
+    practiceId: "present-perfect-quiz",
+  },
+  {
+    slug: "present-perfect-continuous",
+    name: "Present Perfect Continuous",
+    vi: "Thì hiện tại hoàn thành tiếp diễn",
+    desc: "Nhấn mạnh thời lượng của hành động bắt đầu từ quá khứ đến hiện tại.",
+    level: "Nâng cao",
+    progress: 10,
+    accent: "bg-purple-600",
+    intro:
+      "Thì hiện tại hoàn thành tiếp diễn nhấn mạnh thời gian kéo dài của một hành động bắt đầu từ quá khứ và vẫn còn tiếp diễn đến hiện tại. Dấu hiệu: since, for, all day, all morning.",
+    usage: [
+      "Hành động bắt đầu từ quá khứ và còn tiếp diễn: I have been working here for 5 years.",
+      "Nhấn mạnh thời lượng: She has been studying all day.",
+      "Gần đây liên tục: It has been raining since Monday.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + have/has + been + V-ing", example: "They have been waiting for 2 hours." },
+      { use: "Phủ định", structure: "S + have/has + not + been + V-ing", example: "He has not been sleeping well." },
+      { use: "Nghi vấn", structure: "Have/Has + S + been + V-ing?", example: "Have you been working today?" },
+    ],
+    examples: [
+      { en: "I **have been studying** English for three years.", vi: "Mình đã học tiếng Anh được ba năm." },
+      { en: "It **has been raining** all morning.", vi: "Trời đã mưa cả buổi sáng." },
+      { en: "**Have** you **been waiting** long?", vi: "Bạn đã đợi lâu chưa?" },
+    ],
+    practiceId: "present-perfect-continuous-quiz",
   },
   {
     slug: "past-simple",
@@ -118,111 +169,197 @@ export const grammarTopics: GrammarTopic[] = [
     practiceId: "past-simple-quiz",
   },
   {
-    slug: "future-will-going-to",
-    name: "Will & Going to",
-    vi: "Thì tương lai đơn và dự định",
-    desc: "Phân biệt will và be going to để nói về tương lai.",
-    level: "Trung cấp",
+    slug: "past-continuous",
+    name: "Past Continuous",
+    vi: "Thì quá khứ tiếp diễn",
+    desc: "Diễn tả hành động đang diễn ra tại một thời điểm trong quá khứ.",
+    level: "Cơ bản",
     progress: 30,
     accent: "bg-purple-600",
     intro:
-      "Cả will và be going to đều nói về tương lai, nhưng khác nhau ở sắc thái: will dùng cho quyết định tức thì và lời hứa, còn be going to dùng cho dự định đã có sẵn và dự đoán có căn cứ.",
+      "Thì quá khứ tiếp diễn dùng để mô tả hành động đang diễn ra tại một thời điểm cụ thể trong quá khứ, hoặc hai hành động xảy ra đồng thời. Nhận biết qua: while, when, at that time.",
     usage: [
-      "Quyết định ngay lúc nói: It's hot. I will open the window.",
-      "Dự định đã lên kế hoạch: We are going to buy a new house.",
-      "Dự đoán có dấu hiệu: Look at those clouds! It's going to rain.",
+      "Hành động đang diễn ra tại một thời điểm: I was reading at 8 p.m. yesterday.",
+      "Hành động nền dài hơn + hành động ngắt quãng: While I was cooking, the phone rang.",
+      "Hai hành động đồng thời: He was walking and she was running.",
     ],
     formulas: [
-      { use: "Will", structure: "S + will + V", example: "I will help you." },
-      { use: "Going to", structure: "S + am/is/are + going to + V", example: "She is going to travel." },
-      { use: "Phủ định", structure: "S + will not / am not going to + V", example: "They will not agree." },
+      { use: "Khẳng định", structure: "S + was/were + V-ing", example: "They were playing basketball." },
+      { use: "Phủ định", structure: "S + was/were + not + V-ing", example: "He was not listening." },
+      { use: "Nghi vấn", structure: "Was/Were + S + V-ing?", example: "Were you eating?" },
     ],
     examples: [
-      { en: "Don't worry, I **will call** you tonight.", vi: "Đừng lo, tối nay mình sẽ gọi cho bạn." },
-      { en: "We **are going to move** to Hanoi next month.", vi: "Tháng sau chúng mình sẽ chuyển ra Hà Nội." },
-      { en: "Watch out! You **are going to drop** your phone.", vi: "Cẩn thận! Bạn sắp làm rơi điện thoại đấy." },
+      { en: "I **was reading** a book at 9 p.m. yesterday.", vi: "Tối hôm qua lúc 9 giờ mình đang đọc sách." },
+      { en: "**While** I **was cooking**, the phone **rang**.", vi: "Trong khi mình đang nấu thì điện thoại reo." },
+      { en: "**Were** you **sleeping** when I called?", vi: "Bạn có đang ngủ khi mình gọi không?" },
     ],
-    practiceId: "mixed-tenses-quiz",
+    practiceId: "past-continuous-quiz",
   },
   {
-    slug: "present-perfect",
-    name: "Present Perfect",
-    vi: "Thì hiện tại hoàn thành",
-    desc: "Nối quá khứ với hiện tại: đã làm gì và kết quả còn lại.",
-    level: "Trung cấp",
-    progress: 20,
-    accent: "bg-purple-600",
-    intro:
-      "Thì hiện tại hoàn thành diễn tả hành động đã xảy ra trong quá khứ nhưng kết quả còn ảnh hưởng đến hiện tại, hoặc hành động vừa mới hoàn thành. Dấu hiệu nhận biết: already, just, ever, never, since, for.",
-    usage: [
-      "Hành động vừa hoàn thành: I have just finished my lunch.",
-      "Kinh nghiệm sống đến hiện tại: She has never been abroad.",
-      "Hành động bắt đầu trong quá khứ và còn tiếp diễn: We have lived here since 2015.",
-    ],
-    formulas: [
-      { use: "Khẳng định", structure: "S + has/have + V3/ed", example: "He has eaten breakfast." },
-      { use: "Phủ định", structure: "S + has/have + not + V3/ed", example: "I have not seen it." },
-      { use: "Nghi vấn", structure: "Has/Have + S + V3/ed?", example: "Have you ever tried pho?" },
-    ],
-    examples: [
-      { en: "I **have just finished** reading this book.", vi: "Mình vừa mới đọc xong cuốn sách này." },
-      { en: "They **have lived** in this city for ten years.", vi: "Họ đã sống ở thành phố này được mười năm." },
-      { en: "**Have** you **ever traveled** by train?", vi: "Bạn đã bao giờ đi du lịch bằng tàu hỏa chưa?" },
-    ],
-    practiceId: "mixed-tenses-quiz",
-  },
-  {
-    slug: "passive-voice",
-    name: "Passive Voice",
-    vi: "Câu bị động",
-    desc: "Nhấn mạnh hành động và đối tượng chịu tác động.",
-    level: "Nâng cao",
-    progress: 10,
-    accent: "bg-purple-600",
-    intro:
-      "Câu bị động dùng khi muốn nhấn mạnh hành động hoặc đối tượng chịu tác động hơn là người thực hiện. Công thức chung: động từ to be đúng thì + quá khứ phân từ (V3/ed).",
-    usage: [
-      "Người thực hiện không quan trọng: The bridge was built in 2000.",
-      "Văn phong trang trọng, học thuật: The results will be announced soon.",
-      "Nhấn mạnh đối tượng: My phone was stolen yesterday.",
-    ],
-    formulas: [
-      { use: "Hiện tại đơn", structure: "S + am/is/are + V3/ed", example: "English is spoken here." },
-      { use: "Quá khứ đơn", structure: "S + was/were + V3/ed", example: "The cake was eaten." },
-      { use: "Tương lai đơn", structure: "S + will be + V3/ed", example: "The road will be repaired." },
-    ],
-    examples: [
-      { en: "This house **was built** by my grandfather.", vi: "Ngôi nhà này được xây bởi ông mình." },
-      { en: "The homework **has been checked** already.", vi: "Bài tập đã được kiểm tra rồi." },
-      { en: "A new hospital **will be opened** next year.", vi: "Một bệnh viện mới sẽ được mở vào năm sau." },
-    ],
-    practiceId: "mixed-tenses-quiz",
-  },
-  {
-    slug: "conditionals",
-    name: "Conditionals",
-    vi: "Câu điều kiện loại 1, 2, 3",
-    desc: "Giả định, ước muốn và những tình huống không có thật.",
+    slug: "past-perfect",
+    name: "Past Perfect",
+    vi: "Thì quá khứ hoàn thành",
+    desc: "Diễn tả hành động đã hoàn thành trước một hành động khác trong quá khứ.",
     level: "Nâng cao",
     progress: 5,
     accent: "bg-purple-600",
     intro:
-      "Câu điều kiện diễn tả giả thiết và kết quả của nó. Loại 1 nói về khả năng có thật trong tương lai, loại 2 trái với hiện tại, loại 3 trái với quá khứ.",
+      "Thì quá khứ hoàn thành dùng để nói về hành động đã hoàn thành trước một hành động hoặc thời điểm khác trong quá khứ. Thường đi kèm các từ: before, after, by the time, already, just.",
     usage: [
-      "Loại 1 — có thể xảy ra: If it rains, we will stay home.",
-      "Loại 2 — trái hiện tại: If I were rich, I would travel the world.",
-      "Loại 3 — trái quá khứ: If you had studied, you would have passed.",
+      "Hành động hoàn thành trước: I had already left when he called.",
+      "Trình tự sự việc: She had finished dinner before I arrived.",
+      "Điều kiện giả định trong quá khứ: If I had known, I would have helped.",
     ],
     formulas: [
-      { use: "Loại 1", structure: "If + S + V(s/es), S + will + V", example: "If you run, you will catch the bus." },
-      { use: "Loại 2", structure: "If + S + V2/ed, S + would + V", example: "If I had time, I would help." },
-      { use: "Loại 3", structure: "If + S + had + V3/ed, S + would have + V3/ed", example: "If she had left earlier, she would have arrived." },
+      { use: "Khẳng định", structure: "S + had + V3/ed", example: "He had left before I arrived." },
+      { use: "Phủ định", structure: "S + had + not + V3/ed", example: "They had not seen that movie." },
+      { use: "Nghi vấn", structure: "Had + S + V3/ed?", example: "Had you eaten before?" },
     ],
     examples: [
-      { en: "**If** it **rains** tomorrow, we **will cancel** the picnic.", vi: "Nếu mai mưa, chúng ta sẽ hủy buổi dã ngoại." },
-      { en: "**If** I **were** you, I **would accept** the offer.", vi: "Nếu mình là bạn, mình sẽ nhận lời đề nghị đó." },
-      { en: "**If** he **had driven** carefully, he **would not have crashed**.", vi: "Nếu anh ấy lái cẩn thận thì đã không đâm xe." },
+      { en: "I **had already eaten** when she invited me.", vi: "Mình đã ăn rồi khi cô ấy mời." },
+      { en: "**By the time** we **got** there, the movie **had started**.", vi: "Khi chúng mình đến thì phim đã chiếu rồi." },
+      { en: "He **had never visited** London before that trip.", vi: "Trước chuyến đi đó anh ấy chưa bao giờ đến London." },
     ],
-    practiceId: "mixed-tenses-quiz",
+    practiceId: "past-perfect-quiz",
+  },
+  {
+    slug: "past-perfect-continuous",
+    name: "Past Perfect Continuous",
+    vi: "Thì quá khứ hoàn thành tiếp diễn",
+    desc: "Nhấn mạnh thời lượng hành động tiếp diễn trước một thời điểm trong quá khứ.",
+    level: "Nâng cao",
+    progress: 5,
+    accent: "bg-purple-600",
+    intro:
+      "Thì quá khứ hoàn thành tiếp diễn nhấn mạnh thời gian kéo dài của một hành động đã diễn ra liên tục trước một thời điểm hoặc sự kiện khác trong quá khứ. Dấu hiệu: for, since, all day.",
+    usage: [
+      "Hành động kéo dài trước một sự kiện: He had been working there for 10 years before he quit.",
+      "Nhấn mạnh nguyên nhân: She was tired because she had been running.",
+      "Kết quả thể hiện: His eyes were red because he had been crying.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + had + been + V-ing", example: "I had been waiting for 30 minutes." },
+      { use: "Phủ định", structure: "S + had + not + been + V-ing", example: "He had not been sleeping." },
+      { use: "Nghi vấn", structure: "Had + S + been + V-ing?", example: "Had you been studying?" },
+    ],
+    examples: [
+      { en: "She was exhausted because she **had been running** for an hour.", vi: "Cô ấy kiệt sức vì đã chạy bộ một tiếng." },
+      { en: "I **had been living** in Hanoi for 5 years before I moved.", vi: "Trước khi chuyển đi, mình đã sống ở Hà Nội 5 năm." },
+      { en: "**Had** you **been waiting** long before they arrived?", vi: "Bạn đã đợi lâu bao lâu trước khi họ đến?" },
+    ],
+    practiceId: "past-perfect-continuous-quiz",
+  },
+  {
+    slug: "future-simple",
+    name: "Future Simple (Will)",
+    vi: "Thì tương lai đơn (Will)",
+    desc: "Nói về dự đoán, quyết định tức thì và lời hứa trong tương lai.",
+    level: "Cơ bản",
+    progress: 40,
+    accent: "bg-purple-600",
+    intro:
+      "Thì tương lai đơn dùng will để nói về dự đoán, quyết định tức thì, lời hứa, hoặc yêu cầu. Khác với be going to, will thường dùng cho quyết định được đưa ra ngay lúc nói.",
+    usage: [
+      "Quyết định tức thì: It is cold. I will close the window.",
+      "Dự đoán: I think she will pass the exam.",
+      "Lời hứa: I will always love you.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + will + V", example: "I will help you." },
+      { use: "Phủ định", structure: "S + will + not + V", example: "They will not come." },
+      { use: "Nghi vấn", structure: "Will + S + V?", example: "Will you call me?" },
+    ],
+    examples: [
+      { en: "I **will call** you tomorrow.", vi: "Ngày mai mình sẽ gọi cho bạn." },
+      { en: "She **will probably** be late.", vi: "Cô ấy có lẽ sẽ đến muộn." },
+      { en: "**Will** you **help** me with this?", vi: "Bạn có giúp mình việc này không?" },
+    ],
+    practiceId: "future-simple-quiz",
+  },
+  {
+    slug: "future-continuous",
+    name: "Future Continuous",
+    vi: "Thì tương lai tiếp diễn",
+    desc: "Diễn tả hành động đang diễn ra tại một thời điểm trong tương lai.",
+    level: "Trung cấp",
+    progress: 15,
+    accent: "bg-purple-600",
+    intro:
+      "Thì tương lai tiếp diễn dùng để mô tả hành động sẽ đang diễn ra tại một thời điểm cụ thể trong tương lai, hoặc hành động sẽ kéo dài trong một khoảng thời gian trong tương lai.",
+    usage: [
+      "Hành động đang diễn ra tại một thời điểm tương lai: I will be working at 5 p.m. tomorrow.",
+      "Hành động kéo dài trong tương lai: She will be studying all semester.",
+      "Kế hoạch đã định: We will be flying to Japan next week.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + will be + V-ing", example: "I will be working late." },
+      { use: "Phủ định", structure: "S + will not be + V-ing", example: "He will not come." },
+      { use: "Nghi vấn", structure: "Will + S + be + V-ing?", example: "Will you be home?" },
+    ],
+    examples: [
+      { en: "This time tomorrow I **will be flying** to London.", vi: "Ngày mai cùng giờ mình sẽ đang bay đến London." },
+      { en: "She **will be working** all day on Sunday.", vi: "Cô ấy sẽ làm việc cả ngày Chủ nhật." },
+      { en: "**Will** you **be using** the car tonight?", vi: "Tối nay bạn có dùng xe không?" },
+    ],
+    practiceId: "future-continuous-quiz",
+  },
+  {
+    slug: "future-perfect",
+    name: "Future Perfect",
+    vi: "Thì tương lai hoàn thành",
+    desc: "Diễn tả hành động sẽ hoàn thành trước một thời điểm trong tương lai.",
+    level: "Nâng cao",
+    progress: 5,
+    accent: "bg-purple-600",
+    intro:
+      "Thì tương lai hoàn thành dùng để nói về hành động sẽ đã hoàn thành trước một thời điểm hoặc sự kiện cụ thể trong tương lai. Dấu hiệu: by + thời gian, by the time, before.",
+    usage: [
+      "Hành động sẽ hoàn thành trước một thời điểm: By next year, I will have graduated.",
+      "Trước khi một sự kiện xảy ra: She will have left before we arrive.",
+      "Mốc thời gian trong tương lai: They will have built the bridge by December.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + will have + V3/ed", example: "I will have finished by 5 p.m." },
+      { use: "Phủ định", structure: "S + will have + not + V3/ed", example: "He will have not arrived yet." },
+      { use: "Nghi vấn", structure: "Will + S + have + V3/ed?", example: "Will you have completed it?" },
+    ],
+    examples: [
+      { en: "By next month, I **will have saved** enough money.", vi: "Tháng tới mình sẽ đã tiết kiệm đủ tiền." },
+      { en: "**By the time** you **get** home, dinner **will be ready**.", vi: "Khi bạn về đến nhà thì bữa tối sẽ đã sẵn sàng." },
+      { en: "She **will have retired** by 2030.", vi: "Cô ấy sẽ đã nghỉ hưu vào năm 2030." },
+    ],
+    practiceId: "future-perfect-quiz",
+  },
+  {
+    slug: "future-perfect-continuous",
+    name: "Future Perfect Continuous",
+    vi: "Thì tương lai hoàn thành tiếp diễn",
+    desc: "Nhấn mạnh thời lượng hành động tiếp diễn đến một thời điểm trong tương lai.",
+    level: "Nâng cao",
+    progress: 5,
+    accent: "bg-purple-600",
+    intro:
+      "Thì tương lai hoàn thành tiếp diễn nhấn mạnh thời gian kéo dài của một hành động sẽ đang diễn ra và tiếp diễn đến một thời điểm cụ thể trong tương lai. Dấu hiệu: for + thời gian, since + thời gian.",
+    usage: [
+      "Thời lượng đến một mốc tương lai: By next year, I will have been working here for 10 years.",
+      "Nhấn mạnh quá trình kéo dài: She will have been studying for 3 hours by dinner.",
+      "Kết quả thể hiện ở tương lai: His English will have improved significantly by then.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + will have been + V-ing", example: "I will have been working here for 5 years." },
+      { use: "Phủ định", structure: "S + will not have been + V-ing", example: "He will not have been sleeping." },
+      { use: "Nghi vấn", structure: "Will + S + have been + V-ing?", example: "Will you have been waiting long?" },
+    ],
+    examples: [
+      { en: "By Monday, I **will have been studying** for 3 weeks.", vi: "Thứ Hai tới mình sẽ đã học được 3 tuần." },
+      { en: "She **will have been living** there for 10 years by 2025.", vi: "Đến 2025 cô ấy sẽ đã sống ở đó 10 năm." },
+      { en: "**Will** he **have been working** here for a year by next month?", vi: "Tháng tới anh ấy có đã làm việc ở đây được 1 năm chưa?" },
+    ],
+    practiceId: "future-perfect-continuous-quiz",
   },
 ]
+
+/** Lấy grammar topic theo slug */
+export function getGrammarTopic(slug: string): GrammarTopic | undefined {
+  return grammarTopics.find((t) => t.slug === slug)
+}

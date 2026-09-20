@@ -5,7 +5,9 @@ import { AlertCircle, Network, Plus } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
 import {
+  grammarGroupLabel,
   grammarTopics as staticTopics,
+  type GrammarGroup,
   type GrammarLevel,
   type GrammarTopic,
 } from "@/lib/data/grammar"
@@ -23,7 +25,7 @@ import { GrammarSetCard } from "./grammar-set-card"
 import { GrammarTopicCard } from "./grammar-topic-card"
 import { VocabPagination } from "@/components/vocab/vocab-pagination"
 
-/** Số chủ điểm hiển thị trên mỗi trang của danh sách */
+/** Số chủ điểm hiển thị trên mỗi trang của mỗi nhóm (thì / mở rộng) */
 const SETS_PER_PAGE = 9
 
 type GrammarFilter = "all" | "mine" | GrammarLevel
@@ -36,9 +38,12 @@ const FILTERS: { id: GrammarFilter; label: string }[] = [
   { id: "mine", label: "Của tôi" },
 ]
 
+/** Thứ tự hiển thị 2 nhóm chủ điểm: 12 thì trước, mở rộng sau */
+const GROUP_ORDER: GrammarGroup[] = ["tense", "other"]
+
 type ExplorerItem =
-  | { kind: "mine"; key: string; set: GrammarSet }
-  | { kind: "core"; key: string; topic: GrammarTopic }
+  | { kind: "mine"; key: string; group: GrammarGroup; set: GrammarSet }
+  | { kind: "core"; key: string; group: GrammarGroup; topic: GrammarTopic }
 
 export function GrammarExplorer() {
   const { user, loading: authLoading, openAuthModal } = useAuth()
@@ -51,7 +56,11 @@ export function GrammarExplorer() {
   const [creating, setCreating] = useState(false)
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
+  /* Mỗi nhóm (thì / mở rộng) có trang riêng */
+  const [pageByGroup, setPageByGroup] = useState<Record<GrammarGroup, number>>({
+    tense: 1,
+    other: 1,
+  })
   const gridTopRef = useRef<HTMLDivElement | null>(null)
 
   /* Chủ điểm hệ thống: lấy từ Firestore, fallback về static */
@@ -92,11 +101,21 @@ export function GrammarExplorer() {
     loadMySets(user.uid)
   }, [user, authLoading, loadMySets])
 
-  /* Chủ điểm của bạn xếp trước, rồi tới các chủ điểm hệ thống */
+  /* Chủ điểm của bạn xếp trước, rồi tới các chủ điểm hệ thống — mỗi item giữ nhóm (tense/other) riêng */
   const items = useMemo<ExplorerItem[]>(
     () => [
-      ...mySets.map((set) => ({ kind: "mine" as const, key: set.slug, set })),
-      ...systemTopics.map((topic) => ({ kind: "core" as const, key: topic.slug, topic })),
+      ...mySets.map((set) => ({
+        kind: "mine" as const,
+        key: set.slug,
+        group: set.group,
+        set,
+      })),
+      ...systemTopics.map((topic) => ({
+        kind: "core" as const,
+        key: topic.slug,
+        group: topic.group,
+        topic,
+      })),
     ],
     [mySets, systemTopics]
   )
@@ -118,9 +137,18 @@ export function GrammarExplorer() {
     })
   }, [items, filter, query])
 
-  /* Đổi bộ lọc/tìm kiếm → quay lại trang đầu */
+  /* Tách theo nhóm: 12 thì / ngữ pháp mở rộng (bao gồm cả chủ điểm user tạo gắn nhóm "other") */
+  const itemsByGroup = useMemo(() => {
+    const map: Record<GrammarGroup, ExplorerItem[]> = { tense: [], other: [] }
+    for (const it of filtered) {
+      map[it.group].push(it)
+    }
+    return map
+  }, [filtered])
+
+  /* Đổi bộ lọc/tìm kiếm → quay lại trang đầu ở cả 2 nhóm */
   useEffect(() => {
-    setPage(1)
+    setPageByGroup({ tense: 1, other: 1 })
   }, [query, filter])
 
   const handleCreated = (created: GrammarSet) => {
@@ -130,7 +158,7 @@ export function GrammarExplorer() {
   const handleDelete = async (set: GrammarSet) => {
     if (!user) return
     const confirmed = window.confirm(
-      `Xóa chủ điểm “${set.name}”? Hành động này không thể hoàn tác.`
+      `Xóa chủ điểm "${set.name}"? Hành động này không thể hoàn tác.`
     )
     if (!confirmed) return
 
@@ -155,21 +183,29 @@ export function GrammarExplorer() {
     setCreating(true)
   }
 
-  /* Phân trang: mỗi trang tối đa SETS_PER_PAGE chủ điểm */
-  const totalItems = filtered.length
-  const totalPages = Math.max(1, Math.ceil(totalItems / SETS_PER_PAGE))
-  const currentPage = Math.min(page, totalPages)
-  const pagedItems = filtered.slice(
-    (currentPage - 1) * SETS_PER_PAGE,
-    currentPage * SETS_PER_PAGE
-  )
-
-  const changePage = (next: number) => {
+  const changePage = (group: GrammarGroup, next: number, totalPages: number) => {
     const target = Math.min(Math.max(next, 1), totalPages)
-    if (target === currentPage) return
-    setPage(target)
+    setPageByGroup((prev) => {
+      if (prev[group] === target) return prev
+      return { ...prev, [group]: target }
+    })
     gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
+
+  const totalItems = filtered.length
+
+  const renderItem = (it: ExplorerItem) =>
+    it.kind === "mine" ? (
+      <GrammarSetCard
+        key={it.key}
+        set={it.set}
+        mine
+        onDelete={user ? () => handleDelete(it.set) : undefined}
+        deleting={deletingSlug === it.key}
+      />
+    ) : (
+      <GrammarTopicCard key={it.key} topic={it.topic} />
+    )
 
   return (
     <div className="mt-6 space-y-4">
@@ -221,7 +257,7 @@ export function GrammarExplorer() {
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
           <p className="mt-3 text-sm font-medium text-slate-500">Đang tải chủ điểm ngữ pháp…</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : totalItems === 0 ? (
         <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
             <Network className="h-6 w-6" />
@@ -240,38 +276,60 @@ export function GrammarExplorer() {
           </button>
         </div>
       ) : (
-        <>
-          <div ref={gridTopRef} className="grid scroll-mt-24 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {pagedItems.map((it) =>
-              it.kind === "mine" ? (
-                <GrammarSetCard
-                  key={it.key}
-                  set={it.set}
-                  mine
-                  onDelete={user ? () => handleDelete(it.set) : undefined}
-                  deleting={deletingSlug === it.key}
-                />
-              ) : (
-                <GrammarTopicCard key={it.key} topic={it.topic} />
-              )
-            )}
-          </div>
+        <div ref={gridTopRef} className="scroll-mt-24 space-y-8">
+          {GROUP_ORDER.map((group) => {
+            const groupItems = itemsByGroup[group]
+            if (groupItems.length === 0) return null
 
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-            <p className="text-xs font-semibold text-slate-500">
-              Đang xem {pagedItems.length}/{totalItems} chủ điểm
-            </p>
-            <p className="text-xs font-semibold text-slate-500">
-              Trang {currentPage}/{totalPages}
-            </p>
-          </div>
+            const page = pageByGroup[group]
+            const totalPages = Math.max(1, Math.ceil(groupItems.length / SETS_PER_PAGE))
+            const currentPage = Math.min(page, totalPages)
+            const pagedItems = groupItems.slice(
+              (currentPage - 1) * SETS_PER_PAGE,
+              currentPage * SETS_PER_PAGE
+            )
 
-          <VocabPagination page={currentPage} totalPages={totalPages} onChange={changePage} />
-        </>
+            return (
+              <section key={group} className="space-y-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                    {grammarGroupLabel[group]}
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-400">
+                    {groupItems.length} chủ điểm
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {pagedItems.map(renderItem)}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                    <p className="text-xs font-semibold text-slate-500">
+                      Đang xem {pagedItems.length}/{groupItems.length} chủ điểm
+                    </p>
+                    <p className="text-xs font-semibold text-slate-500">
+                      Trang {currentPage}/{totalPages}
+                    </p>
+                  </div>
+                )}
+
+                {totalPages > 1 && (
+                  <VocabPagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onChange={(next) => changePage(group, next, totalPages)}
+                  />
+                )}
+              </section>
+            )
+          })}
+        </div>
       )}
 
       <p className="text-[11px] text-slate-400">
-        Chủ điểm bạn tự tạo được gắn nhãn “Của tôi” và chỉ hiển thị với tài khoản của bạn.
+        Chủ điểm bạn tự tạo được gắn nhãn "Của tôi" và chỉ hiển thị với tài khoản của bạn.
       </p>
 
       {creating && (

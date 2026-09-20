@@ -8,6 +8,12 @@ import type { PhraseItem } from "@/lib/data/phrases"
 
 import { openRouterChatJSON } from "./openrouter"
 
+/* Mẫu câu dùng free router riêng để không phụ thuộc model cũ trong .env.local. */
+const PHRASE_MODELS = (process.env.PHRASE_OPENROUTER_MODELS || "openrouter/free")
+  .split(",")
+  .map((model) => model.trim())
+  .filter(Boolean)
+
 /* ------------------------------------------------------------------ */
 /*  Chuẩn hóa dữ liệu AI trả về                                        */
 /* ------------------------------------------------------------------ */
@@ -109,7 +115,7 @@ export async function generatePhrases(input: GeneratePhrasesInput): Promise<Phra
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.6 }
+    { temperature: 0.6, models: PHRASE_MODELS, reasoning: { enabled: true } }
   )
 
   const phrases = dedupePhrases(sanitizePhrases(payload)).filter((p) => p.vi)
@@ -163,7 +169,7 @@ export async function fillPhrases(
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.2 }
+    { temperature: 0.2, models: PHRASE_MODELS, reasoning: { enabled: true } }
   )
 
   const parsed = sanitizePhrases(payload)

@@ -1,6 +1,11 @@
 import { openRouterChatJSON } from "@/lib/ai/openrouter"
 import type { VocabWord } from "@/lib/data/vocabulary"
 
+const VOCAB_MODELS = (process.env.VOCAB_OPENROUTER_MODELS || "openrouter/free")
+  .split(",")
+  .map((model) => model.trim())
+  .filter(Boolean)
+
 /** Route Handler chạy trên Node.js runtime để dùng được fetch + env của server */
 export const runtime = "nodejs"
 
@@ -43,7 +48,7 @@ async function generateExample(req: ExampleRequest): Promise<string> {
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.7 }
+    { temperature: 0.7, models: VOCAB_MODELS, reasoning: { enabled: true } }
   )
 
   return payload.example?.trim() || ""

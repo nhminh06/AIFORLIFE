@@ -12,6 +12,11 @@ import {
 
 import { openRouterChatJSON } from "./openrouter"
 
+const VOCAB_MODELS = (process.env.VOCAB_OPENROUTER_MODELS || "openrouter/free")
+  .split(",")
+  .map((model) => model.trim())
+  .filter(Boolean)
+
 /* ------------------------------------------------------------------ */
 /*  Chuẩn hóa dữ liệu AI trả về                                        */
 /* ------------------------------------------------------------------ */
@@ -91,10 +96,17 @@ function normalizeVi(value: unknown): string {
 type RawWord = {
   en?: unknown
   word?: unknown
+  english?: unknown
   ipa?: unknown
+  pronunciation?: unknown
   type?: unknown
+  partOfSpeech?: unknown
+  part_of_speech?: unknown
   vi?: unknown
   meaning?: unknown
+  meaningVi?: unknown
+  translation?: unknown
+  definition?: unknown
 }
 
 /** Đọc mảng từ AI trả về dù model bọc trong { words: [...] } hay trả thẳng mảng */
@@ -103,7 +115,9 @@ export function sanitizeWords(payload: unknown): VocabWord[] {
 
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     const record = payload as Record<string, unknown>
-    list = record.words ?? record.data ?? record.items ?? []
+    list = record.words ?? record.vocabulary ?? record.vocab ?? record.data ?? record.items
+    if (list === undefined && (record.en || record.word || record.english)) list = [record]
+    if (list === undefined) list = []
   }
 
   if (!Array.isArray(list)) return []
@@ -112,13 +126,13 @@ export function sanitizeWords(payload: unknown): VocabWord[] {
     .map((item): VocabWord | null => {
       if (!item || typeof item !== "object") return null
       const raw = item as RawWord
-      const en = normalizeEn(raw.en ?? raw.word)
+      const en = normalizeEn(raw.en ?? raw.word ?? raw.english)
       if (!en) return null
       return {
         en,
-        ipa: normalizeIpa(raw.ipa),
-        type: normalizeWordType(raw.type),
-        vi: normalizeVi(raw.vi ?? raw.meaning),
+        ipa: normalizeIpa(raw.ipa ?? raw.pronunciation),
+        type: normalizeWordType(raw.type ?? raw.partOfSpeech ?? raw.part_of_speech),
+        vi: normalizeVi(raw.vi ?? raw.meaning ?? raw.meaningVi ?? raw.translation ?? raw.definition),
       }
     })
     .filter((w): w is VocabWord => w !== null)
@@ -192,10 +206,11 @@ export async function generateVocabWords(input: GenerateVocabInput): Promise<Voc
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.6 }
+    { temperature: 0.6, models: VOCAB_MODELS, reasoning: { enabled: true } }
   )
 
-  const words = dedupeWords(sanitizeWords(payload)).filter((w) => w.ipa && w.vi)
+  /* Một số model trả nghĩa đúng nhưng bỏ IPA; không loại cả danh sách vì thiếu một trường phụ. */
+  const words = dedupeWords(sanitizeWords(payload)).filter((w) => w.en && w.vi)
   if (words.length === 0) {
     throw new Error("AI chưa trả về từ vựng hợp lệ. Vui lòng thử lại.")
   }
@@ -259,7 +274,7 @@ export async function fillVocabWords(
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.2 }
+    { temperature: 0.2, models: VOCAB_MODELS, reasoning: { enabled: true } }
   )
 
   const parsed = sanitizeWords(payload)

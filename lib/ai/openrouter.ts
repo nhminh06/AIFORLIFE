@@ -11,7 +11,7 @@
 const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 /** Model OpenRouter mặc định dùng cho tính năng từ vựng AI */
-export const OPENROUTER_DEFAULT_MODEL = "qwen/qwen3.8-27b:free"
+export const OPENROUTER_DEFAULT_MODEL = "qwen/qwen3-4b:free"
 
 /** Thời gian chờ tối đa cho 1 lần gọi AI (ms) */
 const REQUEST_TIMEOUT_MS = 60_000
@@ -21,6 +21,12 @@ export type OpenRouterRole = "system" | "user" | "assistant"
 export type OpenRouterMessage = {
   role: OpenRouterRole
   content: string
+}
+
+export type OpenRouterRequestOptions = {
+  temperature?: number
+  models?: string[]
+  reasoning?: { enabled: boolean }
 }
 
 /**
@@ -99,7 +105,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 /** Gọi OpenRouter 1 lần và bắt buộc trả về JSON object */
 async function requestOpenRouterJSON<T>(
   messages: OpenRouterMessage[],
-  options: { temperature?: number }
+  options: OpenRouterRequestOptions
 ): Promise<T> {
   const apiKey = getOpenRouterApiKey()
 
@@ -114,14 +120,14 @@ async function requestOpenRouterJSON<T>(
         "X-Title": process.env.OPENROUTER_APP_NAME || "AFL Vocab",
       },
       body: JSON.stringify({
-        models: getOpenRouterModels(),
+        models: options.models?.length ? options.models : getOpenRouterModels(),
         messages,
         temperature: options.temperature ?? 0.4,
         response_format: { type: "json_object" },
         /* Chỉ dùng provider nhanh nhất trong danh sách cho phép → giảm chờ */
         provider: { sort: "throughput", allow_fallbacks: true },
         /* Cắt token suy luận ẩn của model reasoning (deepseek) → trả kết quả nhanh hơn */
-        reasoning: { enabled: false },
+        reasoning: options.reasoning ?? { enabled: false },
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       cache: "no-store",
@@ -169,7 +175,7 @@ const MAX_ATTEMPTS = 3
  */
 export async function openRouterChatJSON<T>(
   messages: OpenRouterMessage[],
-  options: { temperature?: number } = {}
+  options: OpenRouterRequestOptions = {}
 ): Promise<T> {
   let lastError: Error | null = null
 

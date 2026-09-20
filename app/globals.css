@@ -396,6 +396,24 @@
   background-color: rgb(136 19 55 / 0.3);
 }
 
+/* Modal overlay (grammar/vocab/phrase create modals) */
+.dark .bg-slate-900\/40 {
+  background-color: rgba(15 23 45 / 0.6);
+}
+
+/* Modal footer background & border */
+.dark .bg-slate-50\/70 {
+  background-color: #1f2937; /* slate-800 */
+}
+.dark .border-t.border-slate-100 {
+  border-top-color: #1f2937;
+}
+
+/* AI preview section inner box */
+.dark .bg-purple-50\/60 {
+  background-color: rgb(88 28 135 / 0.18);
+}
+
 /* Input tìm kiếm */
 .dark input[type="search"],
 .dark input[type="text"],

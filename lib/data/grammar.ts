@@ -1,5 +1,13 @@
 export type GrammarLevel = "Cơ bản" | "Trung cấp" | "Nâng cao"
 
+/** Nhóm ngữ pháp: 12 thì hay ngữ pháp mở rộng */
+export type GrammarGroup = "tense" | "other"
+
+export const grammarGroupLabel: Record<GrammarGroup, string> = {
+  tense: "12 thì trong tiếng Anh",
+  other: "Ngữ pháp mở rộng",
+}
+
 export type FormulaRow = {
   use: string
   structure: string
@@ -24,6 +32,7 @@ export type GrammarTopic = {
   formulas: FormulaRow[]
   examples: GrammarExample[]
   practiceId: string
+  group: GrammarGroup
 }
 
 export const grammarLevelClass: Record<GrammarLevel, string> = {
@@ -35,6 +44,7 @@ export const grammarLevelClass: Record<GrammarLevel, string> = {
 export const grammarTopics: GrammarTopic[] = [
   {
     slug: "present-simple",
+    group: "tense",
     name: "Present Simple",
     vi: "Thì hiện tại đơn",
     desc: "Diễn tả thói quen, sự thật hiển nhiên và lịch trình.",
@@ -58,10 +68,11 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "Water **boils** at 100 degrees Celsius.", vi: "Nước sôi ở 100 độ C." },
       { en: "The movie **starts** at 7 p.m. tonight.", vi: "Bộ phim bắt đầu lúc 7 giờ tối nay." },
     ],
-    practiceId: "present-simple-quiz",
+        practiceId: "present-simple-quiz",
   },
   {
     slug: "present-continuous",
+    group: "tense",
     name: "Present Continuous",
     vi: "Thì hiện tại tiếp diễn",
     desc: "Diễn tả hành động đang xảy ra và kế hoạch sắp tới.",
@@ -85,10 +96,11 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "I **am meeting** my teacher this afternoon.", vi: "Chiều nay mình sẽ gặp thầy giáo." },
       { en: "**Are** they **coming** to the party tonight?", vi: "Tối nay họ có đến bữa tiệc không?" },
     ],
-    practiceId: "present-continuous-quiz",
+        practiceId: "present-continuous-quiz",
   },
   {
     slug: "present-perfect",
+    group: "tense",
     name: "Present Perfect",
     vi: "Thì hiện tại hoàn thành",
     desc: "Nối quá khứ với hiện tại: đã làm gì và kết quả còn lại.",
@@ -112,10 +124,11 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "They **have lived** in this city for ten years.", vi: "Họ đã sống ở thành phố này được mười năm." },
       { en: "**Have** you **ever traveled** by train?", vi: "Bạn đã bao giờ đi du lịch bằng tàu hỏa chưa?" },
     ],
-    practiceId: "present-perfect-quiz",
+        practiceId: "present-perfect-quiz",
   },
   {
     slug: "present-perfect-continuous",
+    group: "tense",
     name: "Present Perfect Continuous",
     vi: "Thì hiện tại hoàn thành tiếp diễn",
     desc: "Nhấn mạnh thời lượng của hành động bắt đầu từ quá khứ đến hiện tại.",
@@ -139,10 +152,11 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "It **has been raining** all morning.", vi: "Trời đã mưa cả buổi sáng." },
       { en: "**Have** you **been waiting** long?", vi: "Bạn đã đợi lâu chưa?" },
     ],
-    practiceId: "present-perfect-continuous-quiz",
+        practiceId: "present-perfect-continuous-quiz",
   },
   {
     slug: "past-simple",
+    group: "tense",
     name: "Past Simple",
     vi: "Thì quá khứ đơn",
     desc: "Kể lại sự việc đã xảy ra và kết thúc trong quá khứ.",
@@ -166,10 +180,11 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "She **did not finish** her homework yesterday.", vi: "Hôm qua cô ấy đã không làm xong bài tập." },
       { en: "**Did** you **enjoy** the concert?", vi: "Bạn có thích buổi hòa nhạc không?" },
     ],
-    practiceId: "past-simple-quiz",
+        practiceId: "past-simple-quiz",
   },
   {
     slug: "past-continuous",
+    group: "tense",
     name: "Past Continuous",
     vi: "Thì quá khứ tiếp diễn",
     desc: "Diễn tả hành động đang diễn ra tại một thời điểm trong quá khứ.",
@@ -193,10 +208,11 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "**While** I **was cooking**, the phone **rang**.", vi: "Trong khi mình đang nấu thì điện thoại reo." },
       { en: "**Were** you **sleeping** when I called?", vi: "Bạn có đang ngủ khi mình gọi không?" },
     ],
-    practiceId: "past-continuous-quiz",
+        practiceId: "past-continuous-quiz",
   },
   {
     slug: "past-perfect",
+    group: "tense",
     name: "Past Perfect",
     vi: "Thì quá khứ hoàn thành",
     desc: "Diễn tả hành động đã hoàn thành trước một hành động khác trong quá khứ.",
@@ -220,10 +236,11 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "**By the time** we **got** there, the movie **had started**.", vi: "Khi chúng mình đến thì phim đã chiếu rồi." },
       { en: "He **had never visited** London before that trip.", vi: "Trước chuyến đi đó anh ấy chưa bao giờ đến London." },
     ],
-    practiceId: "past-perfect-quiz",
+        practiceId: "past-perfect-quiz",
   },
   {
     slug: "past-perfect-continuous",
+    group: "tense",
     name: "Past Perfect Continuous",
     vi: "Thì quá khứ hoàn thành tiếp diễn",
     desc: "Nhấn mạnh thời lượng hành động tiếp diễn trước một thời điểm trong quá khứ.",
@@ -250,7 +267,8 @@ export const grammarTopics: GrammarTopic[] = [
     practiceId: "past-perfect-continuous-quiz",
   },
   {
-    slug: "future-simple",
+        slug: "future-simple",
+    group: "tense",
     name: "Future Simple (Will)",
     vi: "Thì tương lai đơn (Will)",
     desc: "Nói về dự đoán, quyết định tức thì và lời hứa trong tương lai.",
@@ -277,7 +295,8 @@ export const grammarTopics: GrammarTopic[] = [
     practiceId: "future-simple-quiz",
   },
   {
-    slug: "future-continuous",
+        slug: "future-continuous",
+    group: "tense",
     name: "Future Continuous",
     vi: "Thì tương lai tiếp diễn",
     desc: "Diễn tả hành động đang diễn ra tại một thời điểm trong tương lai.",
@@ -304,7 +323,8 @@ export const grammarTopics: GrammarTopic[] = [
     practiceId: "future-continuous-quiz",
   },
   {
-    slug: "future-perfect",
+        slug: "future-perfect",
+    group: "tense",
     name: "Future Perfect",
     vi: "Thì tương lai hoàn thành",
     desc: "Diễn tả hành động sẽ hoàn thành trước một thời điểm trong tương lai.",
@@ -331,7 +351,8 @@ export const grammarTopics: GrammarTopic[] = [
     practiceId: "future-perfect-quiz",
   },
   {
-    slug: "future-perfect-continuous",
+        slug: "future-perfect-continuous",
+    group: "tense",
     name: "Future Perfect Continuous",
     vi: "Thì tương lai hoàn thành tiếp diễn",
     desc: "Nhấn mạnh thời lượng hành động tiếp diễn đến một thời điểm trong tương lai.",
@@ -355,7 +376,63 @@ export const grammarTopics: GrammarTopic[] = [
       { en: "She **will have been living** there for 10 years by 2025.", vi: "Đến 2025 cô ấy sẽ đã sống ở đó 10 năm." },
       { en: "**Will** he **have been working** here for a year by next month?", vi: "Tháng tới anh ấy có đã làm việc ở đây được 1 năm chưa?" },
     ],
-    practiceId: "future-perfect-continuous-quiz",
+        practiceId: "future-perfect-continuous-quiz",
+  },
+  {
+    slug: "passive-voice",
+    name: "Passive Voice",
+    vi: "Câu bị động",
+    desc: "Chuyển đổi câu tích cực sang câu bị động để nhấn mâm chúng ta hành động chứ không phải chủ thể.",
+    level: "Trung cấp",
+    progress: 0,
+    accent: "bg-purple-600",
+    group: "other",
+    intro:
+      "Câu bị động xuất hiện khi chủ thể không quan trọng hoặt là không biết là ai thực hiện hành động, hoặc muốn nhấn mạnh hành động được thực hiện lên đối tượng. Cấu trúc: be + V3/ed (khẳng định), be + not + V3/ed (phủ định), có bao nhiêu + be + V3/ed? (nghi vấn).",
+    usage: [
+      "Khi người/thứ thực hiện hành không quan trọng: The movie was watched by millions of people.",
+      "Khi muốn nhấn mạnh đối tượng nhận hành động: The new policy will be implemented next month.",
+      "Khi chủ thể không xác định: The documents have been signed already.",
+    ],
+    formulas: [
+      { use: "Khẳng định", structure: "S + am/is/are/was/were/have/has/had/will be + V3/ed", example: "The letter is being written by Mary." },
+      { use: "Phủ định", structure: "S + not + be + V3/ed", example: "The proposal was not accepted." },
+      { use: "Nghi vấn", structure: "Wh- + be + S + V3/ed?", example: "Where was the book written?" },
+    ],
+    examples: [
+      { en: "The homework **was done** by the students yesterday.", vi: "Bài tập về nhà đã được học sinh làm xong hôm qua." },
+      { en: "A new bridge **is being built** in the city center.", vi: "Một cây cầu mới đang được xây dựng ở trung tâm thành phố." },
+      { en: "**Has** the report **been completed** yet?", vi: "Báo cáo đã được hoàn thành chưa?" },
+    ],
+    practiceId: "passive-voice-quiz",
+  },
+  {
+    slug: "conditionals",
+    name: "Conditionals",
+    vi: "Câu điều kiện",
+    desc: "Miêu tả những tình huống giả tưởng, khả năng hoặc hoạt động chưa chắc chắn dựa trên điều kiện.",
+    level: "Trung cấp",
+    progress: 10,
+    accent: "bg-purple-600",
+    group: "other",
+    intro:
+      "Câu điều kiện (if-clauses) dùng để để thể hiện những phát biểu dạng \"nếu... thì...\" nhằm diễn tả khả năng, giả thuyết, hoặc hoàn cảnh. Có 3 loại chính: Điều kiện thực tế (loại 1), giả thuyết hiện tại (loại 2), và giả thuyệnh nằm ngoài khả năng xảy ra (loại 3).",
+    usage: [
+      "Điều kiện thực tế — khả năng là có thật: If it rains tomorrow, I will bring an umbrella.",
+      "Giả thuyễn hiện tại — điều chưa có thật: If I had more time, I would travel around the world.",
+      "Giả thuyệnh quá khứ — việc đã không xảy ra: If she had studied harder, she would have passed the exam.",
+    ],
+    formulas: [
+      { use: "Loại 1", structure: "If + S + V1(s), S + will + V", example: "If it rains, I will stay at home." },
+      { use: "Loại 2", structure: "If + S + V2, S + would + V", example: "If I won the lottery, I would quit my job." },
+      { use: "Loại 3", structure: "If + S + had + V3, S + would have + V3", example: "If he had left early, he would have arrived on time." },
+    ],
+    examples: [
+      { en: "If I **study** hard enough, I **will pass** the exam.", vi: "Nếu mình học chăm chỉ đủ, mình sẽ đậu kỳ thi." },
+      { en: "She **would buy** a house if she **had** more money.", vi: "Cô ấy sẽ mua nhà nếu cô ấy có nhiều tiền hơn." },
+      { en: "If he **had left** earlier, he **would not have missed** the train.", vi: "Nếu anh ấy đi sớm hơn, anh ấy sẽ không bỏ lỡ chuyến tàu." },
+    ],
+    practiceId: "conditionals-quiz",
   },
 ]
 

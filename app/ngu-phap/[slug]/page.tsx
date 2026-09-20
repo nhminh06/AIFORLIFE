@@ -1,23 +1,103 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ArrowLeft, ArrowRight, Lightbulb, Network, Table2 } from "lucide-react"
+import { useParams } from "next/navigation"
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookMarked,
+  Lightbulb,
+  Loader2,
+  Network,
+  Table2,
+} from "lucide-react"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { Highlighted } from "@/components/grammar/highlighted"
-import { grammarLevelClass, grammarTopics } from "@/lib/data/grammar"
+import { useAuth } from "@/lib/auth-context"
+import {
+  getGrammarTopic,
+  grammarLevelClass,
+  type GrammarTopic,
+} from "@/lib/data/grammar"
+import { getMyGrammarSetBySlug } from "@/lib/user-grammar"
 
-export function generateStaticParams() {
-  return grammarTopics.map((t) => ({ slug: t.slug }))
-}
+export default function NguPhapDetailPage() {
+  const params = useParams<{ slug: string }>()
+  const slug = params.slug
+  const { user, loading: authLoading } = useAuth()
 
-type Props = { params: Promise<{ slug: string }> }
+  const [topic, setTopic] = useState<GrammarTopic | null>(null)
+  /** chủ điểm do chính user tạo (myg-*) → hiện nhãn "Của tôi" */
+  const [mine, setMine] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-export default async function NguPhapDetailPage({ params }: Props) {
-  const { slug } = await params
-  const topic = grammarTopics.find((t) => t.slug === slug)
-  if (!topic) notFound()
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      /* Đang chờ biết user đăng nhập hay chưa → chưa kết luận được */
+      if (authLoading) return
+      setLoading(true)
+      try {
+        /* Ưu tiên chủ điểm cá nhân, sau đó tới chủ điểm hệ thống */
+        if (user) {
+          const mySet = await getMyGrammarSetBySlug(user.uid, slug)
+          if (mySet) {
+            if (!cancelled) {
+              setTopic(mySet)
+              setMine(true)
+            }
+            return
+          }
+        }
+        if (!cancelled) {
+          setTopic(getGrammarTopic(slug) ?? null)
+          setMine(false)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [slug, user, authLoading])
 
+  if (loading || authLoading) {
+    return (
+      <SiteShell>
+        <div className="flex flex-col items-center justify-center py-24">
+          <Loader2 className="h-10 w-10 animate-spin text-purple-600" />
+          <p className="mt-4 text-sm font-medium text-slate-500">Đang tải chủ điểm ngữ pháp…</p>
+        </div>
+      </SiteShell>
+    )
+  }
+
+  if (!topic) {
+    return (
+      <SiteShell>
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+            <Network className="h-7 w-7" />
+          </span>
+          <p className="mt-4 text-lg font-bold text-slate-900">Không tìm thấy chủ điểm ngữ pháp</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Chủ điểm này không tồn tại hoặc đã bị xóa.
+          </p>
+          <Link
+            href="/ngu-phap"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Về trang ngữ pháp
+          </Link>
+        </div>
+      </SiteShell>
+    )
+  }
   return (
     <SiteShell>
       <Link
@@ -35,8 +115,18 @@ export default async function NguPhapDetailPage({ params }: Props) {
           desc={topic.vi}
           bubbleClass="bg-purple-600"
         >
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${grammarLevelClass[topic.level]}`}>
-            {topic.level} · {topic.progress}%
+          <span className="flex items-center gap-1.5">
+            {mine && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
+                <BookMarked className="h-3 w-3" />
+                Của tôi
+              </span>
+            )}
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${grammarLevelClass[topic.level]}`}
+            >
+              {topic.level}
+            </span>
           </span>
         </PageHeading>
       </div>
@@ -52,14 +142,21 @@ export default async function NguPhapDetailPage({ params }: Props) {
             <Lightbulb className="h-5 w-5 text-amber-500" />
             2. Khi nào dùng?
           </h2>
-          <ul className="mt-3 space-y-2.5">
-            {topic.usage.map((u) => (
-              <li key={u} className="flex gap-2.5 rounded-xl bg-purple-50/70 px-4 py-3 text-sm leading-relaxed text-slate-700">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
-                {u}
-              </li>
-            ))}
-          </ul>
+          {topic.usage.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">Chưa có nội dung phần này.</p>
+          ) : (
+            <ul className="mt-3 space-y-2.5">
+              {topic.usage.map((u) => (
+                <li
+                  key={u}
+                  className="flex gap-2.5 rounded-xl bg-purple-50/70 px-4 py-3 text-sm leading-relaxed text-slate-700"
+                >
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
+                  {u}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
@@ -67,49 +164,59 @@ export default async function NguPhapDetailPage({ params }: Props) {
             <Table2 className="h-5 w-5 text-purple-600" />
             3. Bảng công thức
           </h2>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[520px] text-left text-sm">
-              <thead>
-                <tr className="bg-purple-600 text-white">
-                  <th className="px-4 py-3 font-semibold">Cách dùng</th>
-                  <th className="px-4 py-3 font-semibold">Cấu trúc</th>
-                  <th className="px-4 py-3 font-semibold">Ví dụ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {topic.formulas.map((f) => (
-                  <tr key={f.use} className="transition-colors hover:bg-purple-50/50">
-                    <td className="px-4 py-3 font-semibold text-slate-900">{f.use}</td>
-                    <td className="px-4 py-3 font-mono text-[13px] text-purple-700">{f.structure}</td>
-                    <td className="px-4 py-3 italic text-slate-600">{f.example}</td>
+          {topic.formulas.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">Chưa có nội dung phần này.</p>
+          ) : (
+            <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead>
+                  <tr className="bg-purple-600 text-white">
+                    <th className="px-4 py-3 font-semibold">Cách dùng</th>
+                    <th className="px-4 py-3 font-semibold">Cấu trúc</th>
+                    <th className="px-4 py-3 font-semibold">Ví dụ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {topic.formulas.map((f) => (
+                    <tr key={f.use + f.structure} className="transition-colors hover:bg-purple-50/50">
+                      <td className="px-4 py-3 font-semibold text-slate-900">{f.use}</td>
+                      <td className="px-4 py-3 font-mono text-[13px] text-purple-700">{f.structure}</td>
+                      <td className="px-4 py-3 italic text-slate-600">{f.example}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
           <h2 className="text-lg font-bold text-slate-900">4. Ví dụ minh họa</h2>
-          <ul className="mt-3 space-y-3">
-            {topic.examples.map((e) => (
-              <li key={e.en} className="rounded-xl bg-slate-50 px-4 py-3">
-                <p className="text-sm font-semibold leading-relaxed text-slate-900 sm:text-base">
-                  <Highlighted text={e.en} />
-                </p>
-                <p className="mt-1 text-sm text-slate-500">{e.vi}</p>
-              </li>
-            ))}
-          </ul>
+          {topic.examples.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">Chưa có nội dung phần này.</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {topic.examples.map((e) => (
+                <li key={e.en} className="rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-sm font-semibold leading-relaxed text-slate-900 sm:text-base">
+                    <Highlighted text={e.en} />
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">{e.vi}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
-        <Link
-          href={`/luyen-tap/${topic.practiceId}`}
-          className="group inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700"
-        >
-          Làm bài tập ngay
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-        </Link>
+        {topic.practiceId && (
+          <Link
+            href={`/luyen-tap/${topic.practiceId}`}
+            className="group inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700"
+          >
+            Làm bài tập ngay
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        )}
       </div>
     </SiteShell>
   )

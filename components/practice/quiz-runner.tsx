@@ -22,6 +22,7 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
   const [checked, setChecked] = useState(false)
   const [input, setInput] = useState("")
   const [picked, setPicked] = useState<number[]>([])
+  const [showHint, setShowHint] = useState(false)
   const [finished, setFinished] = useState(false)
 
   const current = exercise.items[index]
@@ -88,6 +89,7 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
     setChecked(false)
     setInput("")
     setPicked([])
+    setShowHint(false)
   }
 
   const restart = () => {
@@ -96,6 +98,7 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
     setChecked(false)
     setInput("")
     setPicked([])
+    setShowHint(false)
     setFinished(false)
   }
   const score = exercise.items.filter((q, i) => {
@@ -109,12 +112,12 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
   if (finished) {
     const pctScore = total === 0 ? 0 : Math.round((score / total) * 100)
     return (
-      <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm shadow-slate-200/50">
+      <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
           <CheckCircle2 className="h-8 w-8" />
         </span>
-        <h2 className="mt-4 text-2xl font-bold text-slate-900">Hoàn thành!</h2>
-        <p className="mt-2 text-slate-500">
+        <h2 className="mt-4 text-2xl font-bold text-slate-900 dark:text-white">Hoàn thành!</h2>
+        <p className="mt-2 text-slate-500 dark:text-slate-400">
           Bạn đúng {score}/{total} câu ({pctScore}%).
           {pctScore >= 80 ? " Xuất sắc, giữ vững phong độ nhé!" : " Cố gắng thêm chút nữa nhé!"}
         </p>
@@ -122,7 +125,7 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
           <button
             type="button"
             onClick={restart}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             <RotateCcw className="h-4 w-4" />
             Làm lại
@@ -142,14 +145,14 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
   const done = index + (checked ? 1 : 0)
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
         <div className="flex items-center justify-between text-xs font-semibold">
           <span className="text-slate-500">
             Câu {index + 1}/{total}
           </span>
-          <span className="text-slate-700">{Math.round((done / total) * 100)}%</span>
+          <span className="text-slate-700 dark:text-slate-300">{Math.round((done / total) * 100)}%</span>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
           <div
             className="h-full rounded-full bg-orange-500 transition-all"
             style={{ width: `${(done / total) * 100}%` }}
@@ -157,7 +160,7 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
         </div>
       </div>
 
-      <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50 sm:p-8">
+      <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-8">
         {(current.kind === "choice" || current.kind === "listen") && (
           <ChoiceQuestion
             prompt={current.prompt}
@@ -173,6 +176,8 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
           <FillQuestion
             prompt={current.prompt}
             hint={current.hint}
+            showHint={showHint}
+            onToggleHint={() => setShowHint((v) => !v)}
             value={input}
             checked={checked}
             onChange={setInput}
@@ -194,7 +199,9 @@ export function QuizRunner({ exercise }: { exercise: Exercise }) {
           <div
             className={cn(
               "mt-4 flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm font-medium",
-              isCorrect ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+              isCorrect
+                ? "bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-300"
+                : "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300"
             )}
             role="status"
           >

@@ -1,0 +1,105 @@
+▲ Next.js 16.3.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.4:3000
+- Environments: .env.local
+✓ Ready in 916ms
+✓ Running next.config.mjs took 25ms
+
+○ Compiling /ngu-phap/[slug] ...
+ GET /ngu-phap/myg-comparatives-and-superlatives-a1jq 200 in 4.6s (next.js: 4.2s, application-code: 444ms)
+ GET / 200 in 655ms (next.js: 512ms, application-code: 143ms)
+ GET /ca-nhan 200 in 487ms (next.js: 369ms, application-code: 118ms)
+ GET /ngu-phap 200 in 445ms (next.js: 343ms, application-code: 102ms)
+ GET /ngu-phap/present-simple 200 in 70ms (next.js: 16ms, application-code: 53ms)
+ GET /mau-cau 200 in 458ms (next.js: 354ms, application-code: 104ms)
+ GET /tu-vung 200 in 506ms (next.js: 406ms, application-code: 100ms)
+ GET /luyen-tap 200 in 371ms (next.js: 274ms, application-code: 97ms)
+ GET /tien-do 200 in 1446ms (next.js: 1163ms, application-code: 282ms)
+ GET /ca-nhan/thong-bao 200 in 370ms (next.js: 272ms, application-code: 97ms)
+ POST /api/ai/grammar/practice 200 in 5.8s (next.js: 464ms, application-code: 5.3s)
+ GET / 200 in 111ms (next.js: 9ms, application-code: 102ms)
+ GET /ca-nhan 200 in 104ms (next.js: 10ms, application-code: 94ms)
+ GET /ngu-phap 200 in 63ms (next.js: 9ms, application-code: 54ms)
+ GET /ngu-phap/present-simple 200 in 81ms (next.js: 21ms, application-code: 60ms)
+ GET /mau-cau 200 in 75ms (next.js: 7ms, application-code: 68ms)
+ GET /tu-vung 200 in 77ms (next.js: 8ms, application-code: 68ms)
+ GET /luyen-tap 200 in 99ms (next.js: 8ms, application-code: 91ms)
+ GET /tien-do 200 in 95ms (next.js: 9ms, application-code: 87ms)
+ GET /ca-nhan/thong-bao 200 in 66ms (next.js: 7ms, application-code: 59ms)
+[api/ai/grammar/practice] Lỗi: Error: AI chưa tạo đủ số câu hỏi hợp lệ. Vui lòng thử lại.
+    at generateGrammarPractice (lib\ai\grammar-practice-ai.ts:106:11)
+    at async POST (app\api\ai\grammar\practice\route.ts:29:22)
+  104 |   ).slice(0, input.questionCount)
+  105 |   if (items.length !== input.questionCount) {
+> 106 |     throw new Error("AI chưa tạo đủ số câu hỏi hợp lệ. Vui lòng thử lại.")
+      |           ^
+  107 |   }
+  108 |
+  109 |   return {
+ POST /api/ai/grammar/practice 502 in 25.6s (next.js: 5ms, application-code: 25.6s)
+ GET /mau-cau 200 in 54ms (next.js: 12ms, application-code: 41ms)
+ GET /ngu-phap 200 in 65ms (next.js: 20ms, application-code: 45ms)
+ GET /mau-cau 200 in 36ms (next.js: 10ms, application-code: 26ms)
+ GET /ngu-phap 200 in 56ms (next.js: 13ms, application-code: 43ms)
+ GET /ngu-phap 200 in 68ms (next.js: 13ms, application-code: 54ms)
+ GET /ngu-phap 200 in 38ms (next.js: 7ms, application-code: 31ms)
+ POST /api/ai/grammar/practice 200 in 57s (next.js: 5ms, application-code: 57s)
+ POST /api/ai/grammar/practice 400 in 33ms (next.js: 15ms, application-code: 18ms)
+ GET /ngu-phap 200 in 42ms (next.js: 11ms, application-code: 31ms)
+ GET /ngu-phap 200 in 40ms (next.js: 7ms, application-code: 33ms)
+ GET /ngu-phap 200 in 43ms (next.js: 11ms, application-code: 31ms)
+ GET / 200 in 97ms (next.js: 7ms, application-code: 89ms)
+ GET /ca-nhan 200 in 90ms (next.js: 10ms, application-code: 79ms)
+ GET /ngu-phap 200 in 64ms (next.js: 6ms, application-code: 58ms)
+ GET /ngu-phap/present-simple 200 in 104ms (next.js: 23ms, application-code: 80ms)
+ GET /mau-cau 200 in 68ms (next.js: 7ms, application-code: 61ms)
+ GET /tu-vung 200 in 80ms (next.js: 7ms, application-code: 73ms)
+ GET /luyen-tap 200 in 105ms (next.js: 9ms, application-code: 97ms)
+ GET /tien-do 200 in 108ms (next.js: 8ms, application-code: 100ms)
+ GET /ca-nhan/thong-bao 200 in 83ms (next.js: 9ms, application-code: 74ms)
+ POST /api/ai/grammar/practice 200 in 36.3s (next.js: 13ms, application-code: 36.2s)
+ POST /api/ai/grammar/practice 200 in 19.2s (next.js: 3ms, application-code: 19.2s)
+ POST /api/ai/grammar/practice 400 in 12ms (next.js: 4ms, application-code: 8ms)
+ GET /ngu-phap 200 in 66ms (next.js: 6ms, application-code: 60ms)
+  Reload env: .env.local
+ GET /ngu-phap 200 in 186ms (next.js: 87ms, application-code: 98ms)
+ GET /ngu-phap/future-perfect 200 in 70ms (next.js: 32ms, application-code: 38ms)
+ GET /ngu-phap/future-perfect 200 in 57ms (next.js: 17ms, application-code: 39ms)
+ GET /ngu-phap/future-perfect 200 in 53ms (next.js: 19ms, application-code: 34ms)
+ GET /ngu-phap/future-perfect 200 in 54ms (next.js: 17ms, application-code: 37ms)
+ GET /ngu-phap/future-perfect 200 in 43ms (next.js: 16ms, application-code: 27ms)
+ GET /ngu-phap/future-perfect 200 in 46ms (next.js: 17ms, application-code: 28ms)
+[api/ai/grammar/practice] Lỗi: Error [TimeoutError]: The operation was aborted due to timeout
+    at ignore-listed frames {
+  code: 23,
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25
+}
+ POST /api/ai/grammar/practice 502 in 60s (next.js: 48ms, application-code: 60s)
+ GET /ngu-phap/future-perfect 200 in 51ms (next.js: 17ms, application-code: 34ms)
+ GET /ngu-phap/future-perfect 200 in 366ms (next.js: 22ms, application-code: 344ms)
+ GET /ngu-phap/future-perfect 200 in 77ms (next.js: 19ms, application-code: 59ms)
+[?25h

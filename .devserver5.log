@@ -1,0 +1,188 @@
+▲ Next.js 16.3.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.4:3000
+- Environments: .env.local
+✓ Ready in 783ms
+✓ Running next.config.mjs took 35ms
+
+ GET /ngu-phap/future-perfect 200 in 1854ms (next.js: 1451ms, application-code: 403ms)
+[grammar-practice-ai] Tạo 5 câu bằng 2 key OpenRouter song song.
+ POST /api/ai/grammar/practice 200 in 49s (next.js: 62ms, application-code: 49s)
+[grammar-practice-ai] Tạo 8 câu bằng 2 key OpenRouter song song.
+[grammar-practice-ai] Batch 1/2 lỗi: Error [TimeoutError]: The operation was aborted due to timeout
+    at ignore-listed frames {
+  code: 23,
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25
+}
+[grammar-practice-ai] AI chỉ tạo được 5/8 câu hợp lệ cho chủ điểm "Present Simple".
+ POST /api/ai/grammar/practice 200 in 60s (next.js: 5ms, application-code: 60s)
+[grammar-practice-ai] Tạo 10 câu bằng 2 key OpenRouter song song.
+ GET /ngu-phap/future-perfect 200 in 73ms (next.js: 24ms, application-code: 49ms)
+ GET /ngu-phap/future-perfect 200 in 47ms (next.js: 17ms, application-code: 30ms)
+[grammar-practice-ai] Batch 1/2 lỗi: Error [TimeoutError]: The operation was aborted due to timeout
+    at ignore-listed frames {
+  code: 23,
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25
+}
+[grammar-practice-ai] Batch 2/2 lỗi: Error [TimeoutError]: The operation was aborted due to timeout
+    at ignore-listed frames {
+  code: 23,
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25
+}
+[api/ai/grammar/practice] Lỗi: Error [TimeoutError]: The operation was aborted due to timeout
+    at ignore-listed frames {
+  code: 23,
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25
+}
+ POST /api/ai/grammar/practice 502 in 60s (next.js: 3ms, application-code: 60s)
+ POST /api/ai/grammar/practice 400 in 20ms (next.js: 12ms, application-code: 8ms)
+ GET /ngu-phap/future-perfect 200 in 50ms (next.js: 15ms, application-code: 35ms)
+ GET /ngu-phap/future-perfect 200 in 47ms (next.js: 15ms, application-code: 32ms)
+ GET /ngu-phap/future-perfect 200 in 48ms (next.js: 18ms, application-code: 31ms)
+ GET /ngu-phap/future-perfect 200 in 49ms (next.js: 18ms, application-code: 31ms)
+ GET /ngu-phap/future-perfect 200 in 43ms (next.js: 18ms, application-code: 25ms)
+[grammar-practice-ai] Tạo 5 câu bằng 2 key OpenRouter song song.
+ POST /api/ai/grammar/practice 200 in 15.7s (next.js: 8ms, application-code: 15.7s)
+[grammar-practice-ai] Tạo 8 câu bằng 2 key OpenRouter song song.
+ POST /api/ai/grammar/practice 200 in 8.9s (next.js: 3ms, application-code: 8.9s)
+[grammar-practice-ai] Tạo 10 câu bằng 2 key OpenRouter song song.
+[grammar-practice-ai] Batch 2/2 lỗi: Error [OpenRouterError]: Reasoning is mandatory for this endpoint and cannot be disabled.
+    at requestOpenRouterJSON (lib\ai\openrouter.ts:173:13)
+    at async openRouterChatJSON (lib\ai\openrouter.ts:221:14)
+    at async generateBatch (lib\ai\grammar-practice-ai.ts:213:19)
+    at async generateGrammarPractice (lib\ai\grammar-practice-ai.ts:242:19)
+    at async POST (app\api\ai\grammar\practice\route.ts:29:22)
+  171 |       /* 429 (quá nhiều yêu cầu) và 5xx là lỗi tạm thời → có thể thử lại */
+  172 |       const retryable = res.status === 429 || res.status >= 500
+> 173 |       throw new OpenRouterError(await readErrorMessage(res), retryable)
+      |             ^
+  174 |     }
+  175 |
+  176 |     /* Đọc body cũng nằm trong try: model free trả chậm có thể timeout giữa chừng */ {
+  retryable: false
+}
+[grammar-practice-ai] AI chỉ tạo được 7/10 câu hợp lệ cho chủ điểm "Present Simple".
+ POST /api/ai/grammar/practice 200 in 15.7s (next.js: 6ms, application-code: 15.7s)
+ POST /api/ai/grammar/practice 400 in 12ms (next.js: 3ms, application-code: 9ms)
+ GET /ngu-phap/future-perfect 200 in 69ms (next.js: 23ms, application-code: 47ms)
+ GET /ngu-phap/future-perfect 200 in 47ms (next.js: 18ms, application-code: 29ms)
+[grammar-practice-ai] Tạo 5 câu bằng 2 key OpenRouter song song.
+[grammar-practice-ai] Provider yêu cầu bật reasoning → thử lại không tắt reasoning.
+ POST /api/ai/grammar/practice 200 in 19.2s (next.js: 9ms, application-code: 19.2s)
+[grammar-practice-ai] Tạo 8 câu bằng 2 key OpenRouter song song.
+ POST /api/ai/grammar/practice 200 in 19.3s (next.js: 3ms, application-code: 19.3s)
+[grammar-practice-ai] Tạo 10 câu bằng 2 key OpenRouter song song.
+ GET / 200 in 213ms (next.js: 45ms, application-code: 168ms)
+ POST /api/ai/grammar/practice 200 in 14.1s (next.js: 3ms, application-code: 14.0s)
+ POST /api/ai/grammar/practice 400 in 16ms (next.js: 4ms, application-code: 12ms)
+ GET /ngu-phap/future-perfect 200 in 93ms (next.js: 21ms, application-code: 72ms)
+[grammar-practice-ai] Tạo 5 câu bằng 2 key OpenRouter song song.
+ POST /api/ai/grammar/practice 200 in 10.7s (next.js: 4ms, application-code: 10.7s)
+ GET /ngu-phap/future-perfect 200 in 48ms (next.js: 18ms, application-code: 30ms)
+ GET /ngu-phap/future-perfect 200 in 48ms (next.js: 18ms, application-code: 30ms)
+ GET /ngu-phap/future-perfect 200 in 42ms (next.js: 16ms, application-code: 26ms)
+✓ Compiled in 216ms
+ GET /ngu-phap/future-perfect 200 in 68ms (next.js: 30ms, application-code: 38ms)
+✓ Compiled in 124ms
+ GET /ngu-phap/future-perfect 200 in 70ms (next.js: 32ms, application-code: 38ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 117ms
+ GET /ngu-phap/future-perfect 200 in 141ms (next.js: 29ms, application-code: 112ms)
+✓ Compiled in 103ms
+ GET /ngu-phap/future-perfect 200 in 58ms (next.js: 29ms, application-code: 30ms)

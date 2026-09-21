@@ -5,6 +5,7 @@
  *
  * Biến môi trường cần có trong .env.local:
  *   OpenRouter.api.key = sk-or-...                             (bắt buộc)
+ *   OpenRouter.api.key1 = sk-or-...                            (tuỳ chọn — key thứ 2 để chạy song song)
  *   OpenRouter_MODEL   = qwen/qwen3-next-80b-a3b-instruct:free (tuỳ chọn, mặc định bên dưới)
  */
 
@@ -26,21 +27,58 @@ export type OpenRouterMessage = {
 export type OpenRouterRequestOptions = {
   temperature?: number
   models?: string[]
-  reasoning?: { enabled: boolean }
+  /**
+   * `{ enabled: false }` (mặc định) = tắt suy luận ẩn → trả kết quả nhanh.
+   * `null` = không gửi trường này để provider tự quyết (một số provider free bắt buộc bật reasoning).
+   */
+  reasoning?: { enabled: boolean } | null
+  /** Dùng key cụ thể cho request này (mặc định lấy key đầu tiên trong .env.local) */
+  apiKey?: string
+  /** Thời gian chờ tối đa cho 1 lần gọi (mặc định REQUEST_TIMEOUT_MS) */
+  timeoutMs?: number
+  /** Số lần thử tối đa cho request này (mặc định MAX_ATTEMPTS) */
+  maxAttempts?: number
 }
 
+/** Số key phụ tối đa đọc thêm từ .env.local: OpenRouter.api.key1 → key5 */
+const MAX_EXTRA_API_KEYS = 5
+
 /**
- * Lấy API key OpenRouter.
- * Hỗ trợ cả tên có dấu chấm theo .env.local (`OpenRouter.api.key`) và `OPENROUTER_API_KEY`.
+ * Lấy TẤT CẢ API key OpenRouter đang cấu hình.
+ * Hỗ trợ `OpenRouter.api.key` + `OpenRouter.api.key1`, `key2`… và `OPENROUTER_API_KEY` + `OPENROUTER_API_KEY1`…
+ * Có nhiều key thì chạy được nhiều yêu cầu AI song song → giảm thời gian chờ.
  */
-export function getOpenRouterApiKey(): string {
-  const key = process.env["OpenRouter.api.key"] ?? process.env.OPENROUTER_API_KEY
-  if (!key || !key.trim()) {
+export function getOpenRouterApiKeys(): string[] {
+  const keys: string[] = []
+  const push = (value: string | undefined) => {
+    const key = value?.trim()
+    if (key && !keys.includes(key)) keys.push(key)
+  }
+
+  push(process.env["OpenRouter.api.key"])
+  push(process.env.OPENROUTER_API_KEY)
+  for (let index = 1; index <= MAX_EXTRA_API_KEYS; index++) {
+    push(process.env[`OpenRouter.api.key${index}`])
+    push(process.env[`OPENROUTER_API_KEY${index}`])
+  }
+
+  if (keys.length === 0) {
     throw new Error(
       "Chưa cấu hình API key OpenRouter. Hãy thêm `OpenRouter.api.key=sk-or-...` vào file .env.local rồi khởi động lại server."
     )
   }
-  return key.trim()
+
+  return keys
+}
+
+/**
+ * Lấy API key OpenRouter theo thứ tự (0 = key chính, 1 = key phụ…).
+ * Hỗ trợ cả tên có dấu chấm theo .env.local (`OpenRouter.api.key`) và `OPENROUTER_API_KEY`.
+ */
+export function getOpenRouterApiKey(index = 0): string {
+  const keys = getOpenRouterApiKeys()
+  const safeIndex = ((index % keys.length) + keys.length) % keys.length
+  return keys[safeIndex]
 }
 
 /** Model đang dùng — đổi được qua biến môi trường OpenRouter_MODEL */
@@ -107,11 +145,12 @@ async function requestOpenRouterJSON<T>(
   messages: OpenRouterMessage[],
   options: OpenRouterRequestOptions
 ): Promise<T> {
-  const apiKey = getOpenRouterApiKey()
+  const apiKey = options.apiKey?.trim() || getOpenRouterApiKey()
+  const reasoning = options.reasoning === undefined ? { enabled: false } : options.reasoning
 
-  let res: Response
+  let data: { choices?: { message?: { content?: string } }[] }
   try {
-    res = await fetch(OPENROUTER_CHAT_URL, {
+    const res = await fetch(OPENROUTER_CHAT_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -127,24 +166,25 @@ async function requestOpenRouterJSON<T>(
         /* Chỉ dùng provider nhanh nhất trong danh sách cho phép → giảm chờ */
         provider: { sort: "throughput", allow_fallbacks: true },
         /* Cắt token suy luận ẩn của model reasoning (deepseek) → trả kết quả nhanh hơn */
-        reasoning: options.reasoning ?? { enabled: false },
+        ...(reasoning ? { reasoning } : {}),
       }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
       cache: "no-store",
     })
+
+    if (!res.ok) {
+      /* 429 (quá nhiều yêu cầu) và 5xx là lỗi tạm thời → có thể thử lại */
+      const retryable = res.status === 429 || res.status >= 500
+      throw new OpenRouterError(await readErrorMessage(res), retryable)
+    }
+
+    /* Đọc body cũng nằm trong try: model free trả chậm có thể timeout giữa chừng */
+    data = (await res.json()) as typeof data
   } catch (err) {
+    if (err instanceof OpenRouterError) throw err
+    /* Timeout / mất mạng / body không đọc được đều là lỗi tạm thời → thử lại */
     const detail = err instanceof Error ? err.message : String(err)
     throw new OpenRouterError(`Không kết nối được tới OpenRouter: ${detail}`, true)
-  }
-
-  if (!res.ok) {
-    /* 429 (quá nhiều yêu cầu) và 5xx là lỗi tạm thời → có thể thử lại */
-    const retryable = res.status === 429 || res.status >= 500
-    throw new OpenRouterError(await readErrorMessage(res), retryable)
-  }
-
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[]
   }
 
   const content = data.choices?.[0]?.message?.content?.trim()
@@ -171,21 +211,23 @@ const MAX_ATTEMPTS = 3
 
 /**
  * Gọi OpenRouter Chat Completions và bắt buộc trả về JSON object.
- * Tự động thử lại tối đa 3 lần với các lỗi tạm thời (quá tải, mạng, JSON lỗi).
+ * Tự động thử lại với các lỗi tạm thời (quá tải, timeout, mạng, JSON lỗi).
+ * Số lần thử đổi được qua `options.maxAttempts` (ví dụ 2 lần cho tính năng cần trả kết quả nhanh).
  */
 export async function openRouterChatJSON<T>(
   messages: OpenRouterMessage[],
   options: OpenRouterRequestOptions = {}
 ): Promise<T> {
+  const maxAttempts = Math.max(1, options.maxAttempts ?? MAX_ATTEMPTS)
   let lastError: Error | null = null
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await requestOpenRouterJSON<T>(messages, options)
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
       const retryable = err instanceof OpenRouterError ? err.retryable : false
-      if (!retryable || attempt === MAX_ATTEMPTS) break
+      if (!retryable || attempt === maxAttempts) break
       /* model free hay rate-limit 429 → chờ 5s rồi 10s cho provider hồi, thay vì fail ngay */
       await sleep(5000 * attempt)
     }

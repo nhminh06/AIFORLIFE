@@ -16,6 +16,7 @@ import {
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { Highlighted } from "@/components/grammar/highlighted"
+import { GrammarAiPractice } from "@/components/grammar/grammar-ai-practice"
 import { useAuth } from "@/lib/auth-context"
 import {
   getGrammarTopic,
@@ -207,6 +208,8 @@ export default function NguPhapDetailPage() {
             </ul>
           )}
         </section>
+
+        <GrammarAiPractice topic={topic} />
 
         {topic.practiceId && (
           <Link

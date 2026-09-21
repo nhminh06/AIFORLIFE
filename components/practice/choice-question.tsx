@@ -41,7 +41,7 @@ export function ChoiceQuestion({
           </p>
         </div>
       ) : (
-        <p className="text-lg font-bold leading-relaxed text-slate-900">{prompt}</p>
+        <p className="text-lg font-bold leading-relaxed text-slate-900 dark:text-white">{prompt}</p>
       )}
       <div className="mt-5 grid gap-2.5">
         {options.map((opt, i) => {
@@ -50,7 +50,7 @@ export function ChoiceQuestion({
           const isWrong = checked && selected === i && i !== correctIndex
           return (
             <button
-              key={opt}
+              key={`${letter}-${i}`}
               type="button"
               disabled={checked}
               onClick={() => onSelect(i)}
@@ -61,8 +61,8 @@ export function ChoiceQuestion({
                   : isWrong
                     ? "border-red-500 bg-red-50 text-red-800"
                     : checked
-                      ? "border-slate-200 bg-white opacity-60"
-                      : "border-slate-200 bg-white hover:border-orange-400 hover:bg-orange-50/50"
+                      ? "border-slate-200 bg-white opacity-60 dark:border-slate-700 dark:bg-slate-800"
+                      : "border-slate-200 bg-white hover:border-orange-400 hover:bg-orange-50/50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-orange-950/30"
               )}
             >
               <span
@@ -72,7 +72,7 @@ export function ChoiceQuestion({
                     ? "bg-green-600 text-white"
                     : isWrong
                       ? "bg-red-500 text-white"
-                      : "bg-slate-100 text-slate-600"
+                      : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                 )}
               >
                 {letter}

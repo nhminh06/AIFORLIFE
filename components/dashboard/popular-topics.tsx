@@ -22,7 +22,7 @@ const topics = [
 export function PopularTopics() {
   return (
     <section>
-      <SectionHeading icon={LayoutGrid} title="Chủ đề phổ biến" action="Xem tất cả" />
+      <SectionHeading icon={LayoutGrid} title="Chủ đề phổ biến" action="Xem tất cả" actionHref="/tu-vung" />
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {topics.map((t) => {
           const Icon = t.icon

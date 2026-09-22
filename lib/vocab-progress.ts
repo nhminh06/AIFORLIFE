@@ -24,6 +24,7 @@ function writeKeys(slug: string, uid: string | null | undefined, keys: Set<strin
   if (typeof window === "undefined") return
   try {
     window.localStorage.setItem(storageKey(slug, uid), JSON.stringify([...keys]))
+    window.dispatchEvent(new CustomEvent("afl-vocab-progress-updated", { detail: { slug, uid } }))
   } catch {
     // localStorage đầy hoặc bị chặn → bỏ qua, tiến độ chỉ giữ trong phiên này
   }

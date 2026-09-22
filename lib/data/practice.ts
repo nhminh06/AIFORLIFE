@@ -7,6 +7,8 @@ import {
 } from "lucide-react"
 
 export type PracticeTypeId = "trac-nghiem" | "dien-tu" | "nghe-chon" | "sap-xep-cau"
+export type PracticeCategory = "writing" | "listening" | "reading"
+export type PracticeQuestionKind = "choice" | "fill" | "order" | "reading" | "listening" | "writing" | "true-false"
 
 export type PracticeType = {
   id: PracticeTypeId
@@ -24,6 +26,10 @@ export type Question =
   | { kind: "listen"; prompt: string; options: [string, string, string, string]; correctIndex: number }
   | { kind: "fill"; prompt: string; answer: string; hint?: string }
   | { kind: "order"; sentence: string; words: string[] }
+  | { kind: "reading"; passage: string; prompt: string; options: [string, string, string, string]; correctIndex: number }
+  | { kind: "listening"; transcript: string; prompt: string; options: [string, string, string, string]; correctIndex: number }
+  | { kind: "writing"; prompt: string; minWords?: number; sampleAnswer?: string }
+  | { kind: "true-false"; statement: string; answer: boolean; explanation?: string }
 
 export type Exercise = {
   id: string
@@ -36,6 +42,37 @@ export type Exercise = {
   /** điểm cao nhất dạng "đúng/tổng", chỉ khi đã làm */
   bestScore?: string
   items: Question[]
+  category?: PracticeCategory
+  examType?: string
+}
+
+export type PracticeResult = {
+  score: number
+  total: number
+}
+
+export function getPracticeCategory(exercise: Pick<Exercise, "category" | "typeId" | "items">): PracticeCategory {
+  if (exercise.category) return exercise.category
+  if (exercise.typeId === "nghe-chon" || exercise.items.some((item) => item.kind === "listen" || item.kind === "listening")) return "listening"
+  if (exercise.items.some((item) => item.kind === "writing")) return "writing"
+  return "reading"
+}
+
+const practiceIconColors = [
+  "bg-blue-600",
+  "bg-teal-600",
+  "bg-purple-600",
+  "bg-orange-500",
+  "bg-green-600",
+  "bg-pink-500",
+  "bg-sky-500",
+  "bg-indigo-600",
+  "bg-rose-500",
+]
+
+export function getPracticeIconClass(exercise: Pick<Exercise, "id">): string {
+  const hash = [...exercise.id].reduce((total, character) => total + character.charCodeAt(0), 0)
+  return practiceIconColors[hash % practiceIconColors.length]
 }
 
 export const practiceTypes: PracticeType[] = [

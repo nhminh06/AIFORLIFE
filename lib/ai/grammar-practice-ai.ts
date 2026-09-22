@@ -1,4 +1,4 @@
-import { type Exercise, type Question } from "@/lib/data/practice"
+import { type Exercise, type PracticeCategory, type PracticeQuestionKind, type Question } from "@/lib/data/practice"
 
 import { getOpenRouterApiKeys, openRouterChatJSON } from "./openrouter"
 
@@ -27,13 +27,17 @@ type GenerateGrammarPracticeInput = {
   examples: string
   questionCount: number
   difficulty: string
+  questionTypes?: PracticeQuestionKind[]
+  request?: string
+  category?: PracticeCategory
+  examType?: string
 }
 
-const SYSTEM_PROMPT = `Bạn là giáo viên tiếng Anh tạo bài luyện ngữ pháp cho người Việt.
+const SYSTEM_PROMPT = `Bạn là giáo viên tiếng Anh tạo bài luyện tập cho người Việt.
 Trả về DUY NHẤT một object JSON theo định dạng:
-{"items":[{"kind":"choice","prompt":"...","options":["...","...","...","..."],"correctIndex":2},{"kind":"fill","prompt":"... ___ ...","answer":"...","hint":"..."}]}
+{"items":[{"kind":"choice","prompt":"...","options":["...","...","...","..."],"correctIndex":2},{"kind":"fill","prompt":"... ___ ...","answer":"...","hint":"..."},{"kind":"order","sentence":"...","words":["..."]},{"kind":"reading","passage":"...","prompt":"...","options":["...","...","...","..."],"correctIndex":1},{"kind":"listening","transcript":"...","prompt":"...","options":["...","...","...","..."],"correctIndex":0},{"kind":"writing","prompt":"...","minWords":60},{"kind":"true-false","statement":"...","answer":true}]}
 Quy tắc:
-- Tạo đúng số lượng câu được yêu cầu, chỉ dùng kind "choice" hoặc "fill".
+- Tạo đúng số lượng câu được yêu cầu, chỉ dùng các kind được chỉ định trong yêu cầu.
 - CHỦ ĐIỂM HIỆN TẠI LÀ BẮT BUỘC: mọi câu hỏi và mọi đáp án phải kiểm tra đúng chủ điểm này, không được chuyển sang chủ điểm ngữ pháp khác.
 - Nếu yêu cầu của người học mơ hồ hoặc lệch chủ điểm, vẫn chỉ tạo câu hỏi về CHỦ ĐIỂM HIỆN TẠI; chỉ dùng yêu cầu đó để chọn ngữ cảnh, dạng câu hoặc mức độ khó.
 - Ví dụ: nếu chủ điểm hiện tại là Comparatives and Superlatives, tất cả câu phải kiểm tra so sánh hơn, so sánh nhất hoặc cấu trúc liên quan được nêu trong công thức; không tạo câu về thì, câu điều kiện hay chủ điểm khác.
@@ -41,6 +45,11 @@ Quy tắc:
 - choice phải có đúng 4 options (mảng 4 chuỗi), correctIndex là SỐ từ 0 đến 3 và chỉ có một đáp án đúng.
 - Vị trí đáp án đúng (correctIndex) phải PHÂN BỐ NGẪU NHIÊN giữa 0-3, KHÔNG được dồn về một vị trí cố định và KHÔNG được luôn đặt đáp án đúng ở options đầu tiên.
 - fill phải có đúng một chỗ trống viết bằng ba dấu gạch dưới ___, answer là đáp án tiếng Anh ngắn gọn.
+- order phải có sentence là câu hoàn chỉnh và words là các từ của câu bị xáo trộn, không thiếu hoặc lặp từ.
+- reading phải có passage ngắn 40-100 từ, câu hỏi đọc hiểu và đúng 4 đáp án.
+- listening phải có transcript tiếng Anh, câu hỏi nghe hiểu và đúng 4 đáp án.
+- writing phải yêu cầu viết đoạn văn tiếng Anh, có minWords từ 30-150.
+- true-false phải có statement và answer là boolean true hoặc false.
 - Mỗi câu hỏi phải khác nhau, không trùng câu hỏi hay trùng đáp án đúng.
 - Không lặp lại nguyên văn ví dụ trong phần lý thuyết.
 - prompt và options bằng tiếng Anh; hint bằng tiếng Việt nếu có.
@@ -51,7 +60,7 @@ function text(value: unknown): string {
 }
 
 /** Model hay viết kind theo nhiều kiểu khác nhau → quy về 2 dạng dùng được */
-function normalizeKind(value: unknown): "choice" | "fill" | null {
+function normalizeKind(value: unknown): PracticeQuestionKind | null {
   const kind = text(value).toLowerCase().replace(/[\s_]+/g, "-")
   if (!kind) return null
   if (kind.includes("choice") || kind.includes("mcq") || kind.includes("multiple") || kind.includes("trac-nghiem")) {
@@ -66,6 +75,11 @@ function normalizeKind(value: unknown): "choice" | "fill" | null {
   ) {
     return "fill"
   }
+  if (kind.includes("order") || kind.includes("arrange") || kind.includes("sap-xep")) return "order"
+  if (kind.includes("reading") || kind.includes("read") || kind.includes("doc-hieu")) return "reading"
+  if (kind.includes("listening") || kind.includes("listen") || kind.includes("nghe")) return "listening"
+  if (kind.includes("writing") || kind.includes("write") || kind.includes("viet")) return "writing"
+  if (kind.includes("true-false") || kind.includes("truefalse") || kind.includes("dung-sai")) return "true-false"
   return null
 }
 
@@ -116,6 +130,36 @@ function sanitizeItem(value: unknown): Question | null {
     }
   }
 
+  if (kind === "order") {
+    const sentence = text(raw.sentence ?? raw.answer ?? raw.correctSentence ?? raw.prompt)
+    const words = Array.isArray(raw.words) ? raw.words.map(text).filter(Boolean) : []
+    if (sentence && words.length >= 2) return { kind: "order", sentence, words }
+  }
+
+  if ((kind === "reading" || kind === "listening") && prompt && Array.isArray(raw.options)) {
+    const options = raw.options.map(text).filter(Boolean)
+    const correctIndex = options.length === 4 ? resolveCorrectIndex(raw, options) : -1
+    const source = text(raw.passage ?? raw.transcript)
+    if (source && correctIndex >= 0) {
+      return kind === "reading"
+        ? { kind, passage: source, prompt, options: options as [string, string, string, string], correctIndex }
+        : { kind, transcript: source, prompt, options: options as [string, string, string, string], correctIndex }
+    }
+  }
+
+  if (kind === "writing" && prompt) {
+    const minWords = Math.min(Math.max(Number(raw.minWords) || 50, 30), 150)
+    return { kind, prompt, minWords, sampleAnswer: text(raw.sampleAnswer ?? raw.example) || undefined }
+  }
+
+  if (kind === "true-false") {
+    const statement = text(raw.statement ?? raw.prompt)
+    const answer = raw.answer ?? raw.correct
+    if (statement && typeof answer === "boolean") {
+      return { kind, statement, answer, explanation: text(raw.explanation) || undefined }
+    }
+  }
+
   return null
 }
 
@@ -140,7 +184,14 @@ function extractItems(payload: unknown): unknown[] {
 
 /** Khóa để so trùng: câu hỏi nào cũng có phần đề bài */
 function itemKey(item: Question): string {
-  return (item.kind === "order" ? item.sentence : item.prompt).trim().toLowerCase()
+  const text = item.kind === "order"
+    ? item.sentence
+    : item.kind === "true-false"
+      ? item.statement
+      : item.kind === "reading" || item.kind === "listening"
+        ? item.prompt
+        : item.prompt
+  return text.trim().toLowerCase()
 }
 
 /** Bỏ câu bị lặp — AI có thể trả thừa, hoặc 2 batch chạy song song trả trùng nhau */
@@ -202,6 +253,9 @@ function buildUserPrompt(
     `Tên tiếng Việt: ${input.vietnameseTopic}`,
     `Trình độ chủ điểm: ${input.level}`,
     `Độ khó bài tập: ${input.difficulty}`,
+    `Dạng câu bắt buộc: ${(input.questionTypes?.length ? input.questionTypes : ["choice", "fill"]).join(", ")}`,
+    input.category ? `Nhóm kỹ năng: ${input.category}` : "",
+    input.examType ? `Dạng bài cần tạo: ${input.examType}` : "",
     `Giải thích: ${input.intro}`,
     `Công thức: ${input.formulas}`,
     `Cách dùng: ${input.usage}`,
@@ -211,6 +265,8 @@ function buildUserPrompt(
       questionCount + SPARE_QUESTIONS
     } câu, không trùng nhau).`,
   ]
+
+  if (input.request?.trim()) lines.push(`Yêu cầu riêng của người học: ${input.request.trim()}`)
 
   if (exclude.length > 0) {
     lines.push(`Không được lặp lại các câu hỏi sau: ${exclude.slice(0, 12).join(" | ")}`)
@@ -226,12 +282,13 @@ async function requestBatch(
   questionCount: number,
   apiKey: string,
   exclude: string[],
-  reasoning: { enabled: boolean } | null
+  reasoning: { enabled: boolean } | null,
+  questionTypes?: PracticeQuestionKind[]
 ): Promise<Question[]> {
   const payload = await openRouterChatJSON<unknown>(
     [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: buildUserPrompt(input, questionCount, exclude) },
+      { role: "user", content: buildUserPrompt({ ...input, questionTypes }, questionCount, exclude) },
     ],
     {
       temperature: 0.6,
@@ -250,18 +307,19 @@ async function generateBatch(
   input: GenerateGrammarPracticeInput,
   questionCount: number,
   apiKey: string,
-  exclude: string[] = []
+  exclude: string[] = [],
+  questionTypes?: PracticeQuestionKind[]
 ): Promise<Question[]> {
   const reasoning = USE_REASONING ? { enabled: true } : { enabled: false }
 
   try {
-    return await requestBatch(input, questionCount, apiKey, exclude, reasoning)
+    return await requestBatch(input, questionCount, apiKey, exclude, reasoning, questionTypes)
   } catch (err) {
     /* Một số provider free bắt buộc bật reasoning → thử lại ở chế độ để provider tự quyết */
     const message = err instanceof Error ? err.message.toLowerCase() : ""
     if (USE_REASONING || !message.includes("reasoning")) throw err
     console.warn("[grammar-practice-ai] Provider yêu cầu bật reasoning → thử lại không tắt reasoning.")
-    return await requestBatch(input, questionCount, apiKey, exclude, null)
+    return await requestBatch(input, questionCount, apiKey, exclude, null, questionTypes)
   }
 }
 
@@ -276,8 +334,11 @@ export async function generateGrammarPractice(
     console.info(`[grammar-practice-ai] Tạo ${input.questionCount} câu bằng ${batchCount} key OpenRouter song song.`)
   }
 
+  const questionTypes: PracticeQuestionKind[] = input.questionTypes?.length
+    ? input.questionTypes
+    : ["choice", "fill"]
   const results = await Promise.allSettled(
-    shares.map((share, index) => generateBatch(input, share, apiKeys[index]))
+    shares.map((share, index) => generateBatch(input, share, apiKeys[index], [], [questionTypes[index % questionTypes.length]]))
   )
 
   const items: Question[] = []
@@ -313,7 +374,7 @@ export async function generateGrammarPractice(
     const spareKey = apiKeys[(successIndex >= 0 ? successIndex : 0) % apiKeys.length]
     try {
       collect(
-        await generateBatch(input, input.questionCount - items.length, spareKey, items.map(itemKey))
+        await generateBatch(input, input.questionCount - items.length, spareKey, items.map(itemKey), questionTypes)
       )
     } catch (err) {
       console.warn("[grammar-practice-ai] Lần gọi bù không thành công:", err)
@@ -331,9 +392,13 @@ export async function generateGrammarPractice(
     name: `AI luyện tập: ${input.topic}`,
     vi: input.topic,
     desc: `${input.difficulty} · ${items.length} câu`,
-    typeId: "trac-nghiem",
+    typeId: questionTypes.length === 1
+      ? questionTypes[0] === "fill" ? "dien-tu" : questionTypes[0] === "order" ? "sap-xep-cau" : "trac-nghiem"
+      : "trac-nghiem",
     minutes: Math.max(3, items.length),
     status: "Chưa làm",
-    items,
+    category: input.category ?? (questionTypes.includes("writing") ? "writing" : questionTypes.includes("listening") ? "listening" : "reading"),
+    examType: input.examType,
+    items: items.slice(0, input.questionCount),
   }
 }

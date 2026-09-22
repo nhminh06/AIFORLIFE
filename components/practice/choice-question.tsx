@@ -13,6 +13,7 @@ type Props = {
   checked: boolean
   onSelect: (i: number) => void
   listenMode?: boolean
+  listenText?: string
 }
 
 export function ChoiceQuestion({
@@ -23,23 +24,29 @@ export function ChoiceQuestion({
   checked,
   onSelect,
   listenMode = false,
+  listenText,
 }: Props) {
   return (
     <>
       {listenMode ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl bg-purple-50 px-4 py-6 text-center">
-          <button
-            type="button"
-            onClick={() => speak(prompt)}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg shadow-purple-600/30 transition-transform hover:scale-105"
-            aria-label="Nghe lại"
-          >
-            <Headphones className="h-6 w-6" />
-          </button>
-          <p className="text-sm font-medium text-purple-900">
-            Nghe phát âm rồi chọn nghĩa đúng
+        <>
+          <div className="flex flex-col items-center gap-3 rounded-2xl bg-purple-50 px-4 py-6 text-center">
+            <button
+              type="button"
+              onClick={() => speak(listenText || prompt)}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-purple-600 text-white shadow-lg shadow-purple-600/30 transition-transform hover:scale-105"
+              aria-label="Nghe lại"
+            >
+              <Headphones className="h-6 w-6" />
+            </button>
+            <p className="text-sm font-medium text-purple-900">
+              Nghe nội dung rồi đọc câu hỏi bên dưới
+            </p>
+          </div>
+          <p className="mt-5 text-lg font-bold leading-relaxed text-slate-900 dark:text-white">
+            {prompt}
           </p>
-        </div>
+        </>
       ) : (
         <p className="text-lg font-bold leading-relaxed text-slate-900 dark:text-white">{prompt}</p>
       )}

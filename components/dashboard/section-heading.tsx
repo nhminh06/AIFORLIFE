@@ -4,9 +4,10 @@ type SectionHeadingProps = {
   icon: LucideIcon
   title: string
   action?: string
+  actionHref?: string
 }
 
-export function SectionHeading({ icon: Icon, title, action }: SectionHeadingProps) {
+export function SectionHeading({ icon: Icon, title, action, actionHref = "/" }: SectionHeadingProps) {
   return (
     <div className="flex items-center justify-between gap-4">
       <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900">
@@ -17,7 +18,7 @@ export function SectionHeading({ icon: Icon, title, action }: SectionHeadingProp
       </h2>
       {action && (
         <a
-          href="#"
+          href={actionHref}
           className="group inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
         >
           {action}

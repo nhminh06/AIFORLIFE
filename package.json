@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "push:phrases": "node scripts/push-phrases-to-firebase.mjs"
+    "push:phrases": "node scripts/push-phrases-to-firebase.mjs",
+    "seed:practice": "node scripts/seed-practice.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

@@ -1,7 +1,12 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { ArrowRight, BookMarked, Loader2, Network, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 import { grammarLevelClass } from "@/lib/data/grammar"
+import { isGrammarLearned } from "@/lib/grammar-progress"
+import { useAuth } from "@/lib/auth-context"
 
 type GrammarSetCardProps = {
   set: {
@@ -21,7 +26,15 @@ type GrammarSetCardProps = {
 }
 
 export function GrammarSetCard({ set, mine = false, onDelete, deleting = false }: GrammarSetCardProps) {
-  const percent = set.progress === undefined || set.progress === null ? 0 : set.progress
+  const { user } = useAuth()
+  const [learned, setLearned] = useState(false)
+
+  useEffect(() => {
+    const refresh = () => setLearned(isGrammarLearned(set.slug, user?.uid) || set.progress >= 100)
+    refresh()
+    window.addEventListener("afl-grammar-progress-updated", refresh)
+    return () => window.removeEventListener("afl-grammar-progress-updated", refresh)
+  }, [set.slug, set.progress, user?.uid])
 
   return (
     <div className="relative">
@@ -56,15 +69,9 @@ export function GrammarSetCard({ set, mine = false, onDelete, deleting = false }
         </h3>
         <p className="mt-0.5 text-sm text-slate-500">{set.vi}</p>
 
-        <div className="mt-4">
-          <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
-            <span className="text-slate-400">Đã học</span>
-            <span className="text-slate-700">{percent}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className={`h-full rounded-full ${set.accent}`} style={{ width: `${percent}%` }} />
-          </div>
-        </div>
+        <span className={`mt-4 inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${learned ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+          {learned ? "Đã học" : "Chưa học"}
+        </span>
 
         <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-purple-700">
           Học ngay

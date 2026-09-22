@@ -43,6 +43,9 @@ export type OpenRouterRequestOptions = {
 /** Số key phụ tối đa đọc thêm từ .env.local: OpenRouter.api.key1 → key5 */
 const MAX_EXTRA_API_KEYS = 5
 
+/* Phân phối request mới đều giữa các key trong cùng process server. */
+let nextApiKeyIndex = 0
+
 /**
  * Lấy TẤT CẢ API key OpenRouter đang cấu hình.
  * Hỗ trợ `OpenRouter.api.key` + `OpenRouter.api.key1`, `key2`… và `OPENROUTER_API_KEY` + `OPENROUTER_API_KEY1`…
@@ -79,6 +82,14 @@ export function getOpenRouterApiKey(index = 0): string {
   const keys = getOpenRouterApiKeys()
   const safeIndex = ((index % keys.length) + keys.length) % keys.length
   return keys[safeIndex]
+}
+
+/** Lấy key kế tiếp theo kiểu round-robin để các tác vụ độc lập không dồn vào key đầu tiên. */
+export function getNextOpenRouterApiKey(): string {
+  const keys = getOpenRouterApiKeys()
+  const key = keys[nextApiKeyIndex % keys.length]
+  nextApiKeyIndex = (nextApiKeyIndex + 1) % keys.length
+  return key
 }
 
 /** Model đang dùng — đổi được qua biến môi trường OpenRouter_MODEL */
@@ -173,8 +184,8 @@ async function requestOpenRouterJSON<T>(
     })
 
     if (!res.ok) {
-      /* 429 (quá nhiều yêu cầu) và 5xx là lỗi tạm thời → có thể thử lại */
-      const retryable = res.status === 429 || res.status >= 500
+      /* Đổi key khi bị giới hạn, key lỗi hoặc provider tạm thời không sẵn sàng. */
+      const retryable = res.status === 401 || res.status === 402 || res.status === 403 || res.status === 429 || res.status >= 500
       throw new OpenRouterError(await readErrorMessage(res), retryable)
     }
 
@@ -219,17 +230,20 @@ export async function openRouterChatJSON<T>(
   options: OpenRouterRequestOptions = {}
 ): Promise<T> {
   const maxAttempts = Math.max(1, options.maxAttempts ?? MAX_ATTEMPTS)
+  const apiKeys = options.apiKey ? [options.apiKey] : getOpenRouterApiKeys()
+  const firstKeyIndex = options.apiKey ? 0 : (nextApiKeyIndex++ % apiKeys.length)
   let lastError: Error | null = null
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await requestOpenRouterJSON<T>(messages, options)
+      const apiKey = apiKeys[(firstKeyIndex + attempt - 1) % apiKeys.length]
+      return await requestOpenRouterJSON<T>(messages, { ...options, apiKey })
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
       const retryable = err instanceof OpenRouterError ? err.retryable : false
       if (!retryable || attempt === maxAttempts) break
-      /* model free hay rate-limit 429 → chờ 5s rồi 10s cho provider hồi, thay vì fail ngay */
-      await sleep(5000 * attempt)
+      /* Chuyển key ngay ở lần thử tiếp theo; chỉ nghỉ ngắn để tránh dồn request. */
+      await sleep(250 * attempt)
     }
   }
 

@@ -185,7 +185,7 @@ export async function generateGrammarTopic(
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.5, models: GRAMMAR_MODELS, reasoning: { enabled: true } }
+    { temperature: 0.5, models: GRAMMAR_MODELS, reasoning: { enabled: false } }
   )
 
   /* AI có thể trả thiếu / sai kiểu trường → chuẩn hóa toàn bộ trước khi dùng */

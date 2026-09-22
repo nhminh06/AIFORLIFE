@@ -50,13 +50,10 @@ export async function getAllVocabSets(): Promise<VocabSet[]> {
   try {
     const colRef = collection(db, "vocabSets")
     const snapshot = await getDocs(colRef)
-
-    if (snapshot.empty) {
-      console.warn("[vocab-service] Firestore rỗng → dùng dữ liệu tĩnh")
-      return staticVocabSets
-    }
-
-    return snapshot.docs.map((d) => docToVocabSet(d.data()))
+    const remoteSets = snapshot.docs.map((d) => docToVocabSet(d.data()))
+    const bySlug = new Map(staticVocabSets.map((set) => [set.slug, set]))
+    remoteSets.forEach((set) => bySlug.set(set.slug, set))
+    return [...bySlug.values()]
   } catch (err) {
     console.error("[vocab-service] Lỗi khi lấy từ Firestore:", err)
     return staticVocabSets

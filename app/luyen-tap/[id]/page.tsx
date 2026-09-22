@@ -1,25 +1,48 @@
+"use client"
+
+import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
-import { ArrowLeft, Clock3, ListOrdered } from "lucide-react"
+import { ArrowLeft, Clock3, ListOrdered, Loader2 } from "lucide-react"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { QuizRunner } from "@/components/practice/quiz-runner"
-import { exercises, getPracticeType, statusClass } from "@/lib/data/practice"
-
-export function generateStaticParams() {
-  return exercises.map((e) => ({ id: e.id }))
-}
+import { getPracticeType, statusClass, type Exercise } from "@/lib/data/practice"
+import { loadDefaultExercise, loadMyExercise, saveLocalPracticeResult } from "@/lib/practice-service"
+import { useAuth } from "@/lib/auth-context"
+import { updateMyExerciseResult } from "@/lib/user-practice"
 
 type Props = { params: Promise<{ id: string }> }
 
-export default async function LuyenTapDetailPage({ params }: Props) {
-  const { id } = await params
-  const exercise = exercises.find((e) => e.id === id)
-  if (!exercise) notFound()
+export default function LuyenTapDetailPage({ params }: Props) {
+  const { id } = use(params)
+  const { user } = useAuth()
+  const [exercise, setExercise] = useState<Exercise | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    const request = user && id.startsWith("ai-")
+      ? loadMyExercise(user.uid, id)
+      : loadDefaultExercise(id)
+    request.then((result) => active && setExercise(result)).finally(() => active && setLoading(false))
+    return () => { active = false }
+  }, [id, user])
+
+  if (loading) return <SiteShell><div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-orange-500" /></div></SiteShell>
+  if (!exercise) return <SiteShell><div className="py-20 text-center"><p className="font-semibold text-slate-700">Không tìm thấy bài luyện tập.</p><Link href="/luyen-tap" className="mt-3 inline-flex text-sm font-semibold text-orange-600">Về danh sách bài tập</Link></div></SiteShell>
 
   const type = getPracticeType(exercise.typeId)
   const TypeIcon = type.icon
+  const handleCompleted = (result: { score: number; total: number }) => {
+    saveLocalPracticeResult(exercise.id, result)
+    window.dispatchEvent(new CustomEvent("afl-practice-completed", { detail: { id: exercise.id, result } }))
+    if (user && exercise.id.startsWith("ai-")) {
+      updateMyExerciseResult(user.uid, exercise.id, result).catch((error) => {
+        console.error("[practice-detail] Không lưu được kết quả:", error)
+      })
+    }
+  }
 
   return (
     <SiteShell>
@@ -58,7 +81,7 @@ export default async function LuyenTapDetailPage({ params }: Props) {
       </div>
 
       <div className="mt-6">
-        <QuizRunner exercise={exercise} />
+        <QuizRunner exercise={exercise} onCompleted={handleCompleted} />
       </div>
     </SiteShell>
   )

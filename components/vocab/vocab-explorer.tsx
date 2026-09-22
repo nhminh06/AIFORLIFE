@@ -179,7 +179,7 @@ export function VocabExplorer() {
     <div className="mt-6 space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <VocabTopicFilter topics={topics} active={topic} onChange={setTopic} />
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
           <VocabSearchBar value={query} onChange={setQuery} />
           <button
             type="button"

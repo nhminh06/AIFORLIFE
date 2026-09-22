@@ -6,7 +6,7 @@
 
 import type { PhraseItem } from "@/lib/data/phrases"
 
-import { openRouterChatJSON } from "./openrouter"
+import { getOpenRouterApiKeys, openRouterChatJSON } from "./openrouter"
 
 /* Mẫu câu dùng free router riêng để không phụ thuộc model cũ trong .env.local. */
 const PHRASE_MODELS = (process.env.PHRASE_OPENROUTER_MODELS || "openrouter/free")
@@ -98,27 +98,38 @@ export type GeneratePhrasesInput = {
 export async function generatePhrases(input: GeneratePhrasesInput): Promise<PhraseItem[]> {
   const count = Math.min(Math.max(1, Math.trunc(input.count)), 40)
 
-  const userPrompt = [
-    `Hãy soạn ${count} mẫu câu tiếng Anh giao tiếp thực tế cho người Việt học tiếng Anh.`,
-    `- Tình huống: ${input.situation}`,
-    `- Trình độ: ${input.level}. Câu từ và cấu trúc phải phù hợp đúng trình độ này.`,
-    input.prompt?.trim() ? `- Yêu cầu riêng của người học: ${input.prompt.trim()}` : "",
-    input.notes?.trim() ? `- Ghi chú thêm: ${input.notes.trim()}` : "",
-    "Các câu phải đa dạng mục đích sử dụng trong tình huống (hỏi, đáp, lịch sự, khẩn cấp...), không trùng nhau.",
-    `Trả về đúng ${count} phần tử trong mảng "phrases".`,
-  ]
-    .filter(Boolean)
-    .join("\n")
+  const apiKeys = getOpenRouterApiKeys()
+  const batchCount = Math.max(1, Math.min(apiKeys.length, count))
+  const baseCount = Math.floor(count / batchCount)
+  const remainder = count % batchCount
+  const batches = Array.from({ length: batchCount }, (_, index) => baseCount + (index < remainder ? 1 : 0))
+  const results = await Promise.allSettled(
+    batches.map((batchSize, index) => {
+      const userPrompt = [
+        `Hãy soạn ${batchSize} mẫu câu tiếng Anh giao tiếp thực tế cho người Việt học tiếng Anh.`,
+        `- Tình huống: ${input.situation}`,
+        `- Trình độ: ${input.level}. Câu từ và cấu trúc phải phù hợp đúng trình độ này.`,
+        input.prompt?.trim() ? `- Yêu cầu riêng của người học: ${input.prompt.trim()}` : "",
+        input.notes?.trim() ? `- Ghi chú thêm: ${input.notes.trim()}` : "",
+        "Các câu phải đa dạng mục đích sử dụng trong tình huống (hỏi, đáp, lịch sự, khẩn cấp...), không trùng nhau.",
+        `Trả về đúng ${batchSize} phần tử trong mảng "phrases".`,
+      ]
+        .filter(Boolean)
+        .join("\n")
 
-  const payload = await openRouterChatJSON<unknown>(
-    [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    { temperature: 0.6, models: PHRASE_MODELS, reasoning: { enabled: true } }
+      return openRouterChatJSON<unknown>(
+        [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        { temperature: 0.6, models: PHRASE_MODELS, reasoning: { enabled: false }, apiKey: apiKeys[index] }
+      )
+    })
   )
 
-  const phrases = dedupePhrases(sanitizePhrases(payload)).filter((p) => p.vi)
+  const phrases = dedupePhrases(
+    results.flatMap((result) => (result.status === "fulfilled" ? sanitizePhrases(result.value) : []))
+  ).filter((p) => p.vi)
   if (phrases.length === 0) {
     throw new Error("AI chưa trả về mẫu câu hợp lệ. Vui lòng thử lại.")
   }
@@ -150,29 +161,38 @@ export async function fillPhrases(
 
   if (targets.length === 0) return []
 
-  const userPrompt = [
-    "Bổ sung nghĩa tiếng Việt còn thiếu cho từng mẫu câu tiếng Anh dưới đây.",
-    context.situation?.trim() ? `Tình huống sử dụng: ${context.situation.trim()}` : "",
-    context.level ? `Trình độ người học: ${context.level}` : "",
-    "Dịch theo CẢ CÂU (không dịch từng từ rồi ghép), nghĩa tự nhiên như người Việt nói.",
-    'Giữ nguyên "en" y như đầu vào, đúng thứ tự và đúng số lượng phần tử.',
-    'Nếu một câu đã có "vi" thì giữ nguyên giá trị đó.',
-    "",
-    "Danh sách đầu vào (JSON):",
-    JSON.stringify({ phrases: targets }, null, 2),
-  ]
-    .filter(Boolean)
-    .join("\n")
+  const apiKeys = getOpenRouterApiKeys()
+  const batchCount = Math.max(1, Math.min(apiKeys.length, targets.length))
+  const batches = Array.from({ length: batchCount }, (_, index) =>
+    targets.filter((_, targetIndex) => targetIndex % batchCount === index)
+  )
+  const results = await Promise.allSettled(
+    batches.map((batch, index) => {
+      const userPrompt = [
+        "Bổ sung nghĩa tiếng Việt còn thiếu cho từng mẫu câu tiếng Anh dưới đây.",
+        context.situation?.trim() ? `Tình huống sử dụng: ${context.situation.trim()}` : "",
+        context.level ? `Trình độ người học: ${context.level}` : "",
+        "Dịch theo CẢ CÂU (không dịch từng từ rồi ghép), nghĩa tự nhiên như người Việt nói.",
+        'Giữ nguyên "en" y như đầu vào, đúng thứ tự và đúng số lượng phần tử.',
+        'Nếu một câu đã có "vi" thì giữ nguyên giá trị đó.',
+        "",
+        "Danh sách đầu vào (JSON):",
+        JSON.stringify({ phrases: batch }, null, 2),
+      ]
+        .filter(Boolean)
+        .join("\n")
 
-  const payload = await openRouterChatJSON<unknown>(
-    [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    { temperature: 0.2, models: PHRASE_MODELS, reasoning: { enabled: true } }
+      return openRouterChatJSON<unknown>(
+        [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        { temperature: 0.2, models: PHRASE_MODELS, reasoning: { enabled: false }, apiKey: apiKeys[index] }
+      )
+    })
   )
 
-  const parsed = sanitizePhrases(payload)
+  const parsed = results.flatMap((result) => (result.status === "fulfilled" ? sanitizePhrases(result.value) : []))
 
   /* Ghép kết quả AI với dữ liệu gốc: khớp theo "en", phần nào AI thiếu thì lấy của người dùng */
   return targets.map((target) => {

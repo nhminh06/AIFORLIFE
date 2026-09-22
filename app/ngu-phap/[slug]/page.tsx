@@ -5,8 +5,8 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
   ArrowLeft,
-  ArrowRight,
   BookMarked,
+  Check,
   Lightbulb,
   Loader2,
   Network,
@@ -24,6 +24,7 @@ import {
   type GrammarTopic,
 } from "@/lib/data/grammar"
 import { getMyGrammarSetBySlug } from "@/lib/user-grammar"
+import { isGrammarLearned, setGrammarLearned } from "@/lib/grammar-progress"
 
 export default function NguPhapDetailPage() {
   const params = useParams<{ slug: string }>()
@@ -34,6 +35,7 @@ export default function NguPhapDetailPage() {
   /** chủ điểm do chính user tạo (myg-*) → hiện nhãn "Của tôi" */
   const [mine, setMine] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [learned, setLearned] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -65,6 +67,10 @@ export default function NguPhapDetailPage() {
       cancelled = true
     }
   }, [slug, user, authLoading])
+
+  useEffect(() => {
+    setLearned(isGrammarLearned(slug, user?.uid))
+  }, [slug, user?.uid])
 
   if (loading || authLoading) {
     return (
@@ -131,6 +137,15 @@ export default function NguPhapDetailPage() {
           </span>
         </PageHeading>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setLearned(setGrammarLearned(topic.slug, user?.uid, !learned))}
+        className={`mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${learned ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-purple-600 text-white hover:bg-purple-700"}`}
+      >
+        <Check className="h-4 w-4" />
+        {learned ? "Đã học" : "Đánh dấu đã học"}
+      </button>
 
       <div className="mt-6 max-w-4xl space-y-5">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
@@ -210,16 +225,6 @@ export default function NguPhapDetailPage() {
         </section>
 
         <GrammarAiPractice topic={topic} />
-
-        {topic.practiceId && (
-          <Link
-            href={`/luyen-tap/${topic.practiceId}`}
-            className="group inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700"
-          >
-            Làm bài tập ngay
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        )}
       </div>
     </SiteShell>
   )

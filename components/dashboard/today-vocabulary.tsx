@@ -40,7 +40,7 @@ export function TodayVocabulary() {
         <h3 className="text-base font-bold text-slate-900 dark:text-white">Từ vựng hôm nay</h3>
       </div>
       <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
-        5 từ mới mỗi ngày, theo đúng trình độ của bạn
+        Từ mới mỗi ngày, theo đúng trình độ của bạn
       </p>
 
       {status === "loading" && (

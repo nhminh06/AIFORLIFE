@@ -1,9 +1,24 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { ArrowRight, Network } from "lucide-react"
 import Link from "next/link"
 
 import { grammarLevelClass, type GrammarTopic } from "@/lib/data/grammar"
+import { isGrammarLearned } from "@/lib/grammar-progress"
+import { useAuth } from "@/lib/auth-context"
 
 export function GrammarTopicCard({ topic }: { topic: GrammarTopic }) {
+  const { user } = useAuth()
+  const [learned, setLearned] = useState(false)
+
+  useEffect(() => {
+    const refresh = () => setLearned(isGrammarLearned(topic.slug, user?.uid) || topic.progress >= 100)
+    refresh()
+    window.addEventListener("afl-grammar-progress-updated", refresh)
+    return () => window.removeEventListener("afl-grammar-progress-updated", refresh)
+  }, [topic.slug, topic.progress, user?.uid])
+
   return (
     <Link
       href={`/ngu-phap/${topic.slug}`}
@@ -20,15 +35,9 @@ export function GrammarTopicCard({ topic }: { topic: GrammarTopic }) {
       <h3 className="mt-3 font-bold text-slate-900 group-hover:text-purple-700">{topic.name}</h3>
       <p className="mt-0.5 text-sm text-slate-500">{topic.vi}</p>
       <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-slate-500">{topic.desc}</p>
-      <div className="mt-4">
-        <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
-          <span className="text-slate-400">Đã học</span>
-          <span className="text-slate-700">{topic.progress}%</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-purple-600" style={{ width: `${topic.progress}%` }} />
-        </div>
-      </div>
+      <span className={`mt-4 inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${learned ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+        {learned ? "Đã học" : "Chưa học"}
+      </span>
       <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-purple-700">
         Học ngay
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

@@ -10,7 +10,7 @@ import {
   type VocabWord,
 } from "@/lib/data/vocabulary"
 
-import { openRouterChatJSON } from "./openrouter"
+import { getOpenRouterApiKeys, openRouterChatJSON } from "./openrouter"
 
 const VOCAB_MODELS = (process.env.VOCAB_OPENROUTER_MODELS || "openrouter/free")
   .split(",")
@@ -93,6 +93,11 @@ function normalizeVi(value: unknown): string {
     .replace(/[.;]+$/, "")
 }
 
+/** Từ vựng tiếng Anh không được chứa ký tự Hán do model đôi khi trộn tiếng Trung. */
+function containsHan(value: string): boolean {
+  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(value)
+}
+
 type RawWord = {
   en?: unknown
   word?: unknown
@@ -128,22 +133,24 @@ export function sanitizeWords(payload: unknown): VocabWord[] {
       const raw = item as RawWord
       const en = normalizeEn(raw.en ?? raw.word ?? raw.english)
       if (!en) return null
+      const vi = normalizeVi(raw.vi ?? raw.meaning ?? raw.meaningVi ?? raw.translation ?? raw.definition)
+      if (containsHan(en) || containsHan(vi)) return null
       return {
         en,
         ipa: normalizeIpa(raw.ipa ?? raw.pronunciation),
         type: normalizeWordType(raw.type ?? raw.partOfSpeech ?? raw.part_of_speech),
-        vi: normalizeVi(raw.vi ?? raw.meaning ?? raw.meaningVi ?? raw.translation ?? raw.definition),
+        vi,
       }
     })
     .filter((w): w is VocabWord => w !== null)
 }
 
-/** Loại bỏ từ trùng nhau (không phân biệt hoa/thường) */
+/** Loại bỏ từ trùng nhau, kể cả khác hoa thường, khoảng trắng hoặc dấu gạch nối. */
 function dedupeWords(words: VocabWord[]): VocabWord[] {
   const seen = new Set<string>()
   const result: VocabWord[] = []
   for (const w of words) {
-    const key = w.en.toLowerCase()
+    const key = w.en.normalize("NFKC").toLowerCase().replace(/[\s\-_]+/g, "")
     if (seen.has(key)) continue
     seen.add(key)
     result.push(w)
@@ -190,27 +197,39 @@ export type GenerateVocabInput = {
 export async function generateVocabWords(input: GenerateVocabInput): Promise<VocabWord[]> {
   const { topic, prompt, level, count, notes } = input
 
-  const userPrompt = [
-    `Hãy tạo danh sách ${count} từ/cụm từ tiếng Anh cho người Việt học tiếng Anh.`,
-    `- Chủ đề: ${topic}`,
-    `- Trình độ CEFR: ${level} (${vocabLevelLabels[level]}). Chỉ chọn những từ vựng phù hợp đúng trình độ này.`,
-    prompt?.trim() ? `- Yêu cầu riêng của người học: ${prompt.trim()}` : "",
-    notes?.trim() ? `- Ghi chú thêm: ${notes.trim()}` : "",
-    `Trả về đúng ${count} phần tử trong mảng "words", không trùng nhau.`,
-  ]
-    .filter(Boolean)
-    .join("\n")
+  const apiKeys = getOpenRouterApiKeys()
+  const batchCount = Math.max(1, Math.min(apiKeys.length, count))
+  const baseCount = Math.floor(count / batchCount)
+  const remainder = count % batchCount
+  const batches = Array.from({ length: batchCount }, (_, index) => baseCount + (index < remainder ? 1 : 0))
 
-  const payload = await openRouterChatJSON<unknown>(
-    [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    { temperature: 0.6, models: VOCAB_MODELS, reasoning: { enabled: true } }
+  const results = await Promise.allSettled(
+    batches.map((batchSize, index) => {
+      const userPrompt = [
+        `Hãy tạo danh sách ${batchSize} từ/cụm từ tiếng Anh cho người Việt học tiếng Anh.`,
+        `- Chủ đề: ${topic}`,
+        `- Trình độ CEFR: ${level} (${vocabLevelLabels[level]}). Chỉ chọn những từ vựng phù hợp đúng trình độ này.`,
+        prompt?.trim() ? `- Yêu cầu riêng của người học: ${prompt.trim()}` : "",
+        notes?.trim() ? `- Ghi chú thêm: ${notes.trim()}` : "",
+        `Trả về đúng ${batchSize} phần tử trong mảng "words", không trùng nhau và chỉ dùng từ/cụm từ tiếng Anh. Tuyệt đối không dùng tiếng Trung hoặc ký tự Hán trong "en" hay "vi".`,
+      ]
+        .filter(Boolean)
+        .join("\n")
+
+      return openRouterChatJSON<unknown>(
+        [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        { temperature: 0.6, models: VOCAB_MODELS, reasoning: { enabled: false }, apiKey: apiKeys[index] }
+      )
+    })
   )
 
   /* Một số model trả nghĩa đúng nhưng bỏ IPA; không loại cả danh sách vì thiếu một trường phụ. */
-  const words = dedupeWords(sanitizeWords(payload)).filter((w) => w.en && w.vi)
+  const words = dedupeWords(
+    results.flatMap((result) => (result.status === "fulfilled" ? sanitizeWords(result.value) : []))
+  ).filter((w) => w.en && w.vi)
   if (words.length === 0) {
     throw new Error("AI chưa trả về từ vựng hợp lệ. Vui lòng thử lại.")
   }
@@ -251,43 +270,53 @@ export async function fillVocabWords(
 
   const hasContext = Boolean(context.topic?.trim() || context.level)
 
-  const userPrompt = [
-    "Bổ sung thông tin còn thiếu cho từng từ tiếng Anh dưới đây.",
-    context.topic?.trim() ? `Chủ đề: ${context.topic.trim()}` : "",
-    context.level ? `Trình độ người học: ${context.level}` : "",
-    hasContext
-      ? "Chọn nghĩa tiếng Việt PHỔ BIẾN NHẤT trong từ điển, sát với chủ đề và trình độ trên; bỏ nghĩa hiếm gặp."
-      : "Chọn nghĩa tiếng Việt PHỔ BIẾN NHẤT trong từ điển cho mỗi từ.",
-    "Nghĩa phải tương ứng đúng với từ loại đã xác định, dịch theo CẢ CỤM với cụm từ/thành ngữ (không dịch từng từ rồi ghép).",
-    'Giữ nguyên "en" y như đầu vào, đúng thứ tự và đúng số lượng phần tử.',
-    'Nếu một từ đã có "ipa" hoặc "vi" thì giữ nguyên giá trị đó, chỉ điền phần còn thiếu.',
-    'Với "type", hãy xác định đúng từ loại của từ đó trong ngữ cảnh chủ đề.',
-    "",
-    "Danh sách đầu vào (JSON):",
-    JSON.stringify({ words: targets }, null, 2),
-  ]
-    .filter(Boolean)
-    .join("\n")
+  const apiKeys = getOpenRouterApiKeys()
+  const batchCount = Math.max(1, Math.min(apiKeys.length, targets.length))
+  const batches = Array.from({ length: batchCount }, (_, index) =>
+    targets.filter((_, targetIndex) => targetIndex % batchCount === index)
+  )
+  const results = await Promise.allSettled(
+    batches.map((batch, index) => {
+      const userPrompt = [
+        "Bổ sung thông tin còn thiếu cho từng từ tiếng Anh dưới đây.",
+        context.topic?.trim() ? `Chủ đề: ${context.topic.trim()}` : "",
+        context.level ? `Trình độ người học: ${context.level}` : "",
+        hasContext
+          ? "Chọn nghĩa tiếng Việt PHỔ BIẾN NHẤT trong từ điển, sát với chủ đề và trình độ trên; bỏ nghĩa hiếm gặp."
+          : "Chọn nghĩa tiếng Việt PHỔ BIẾN NHẤT trong từ điển cho mỗi từ.",
+        "Nghĩa phải tương ứng đúng với từ loại đã xác định, dịch theo CẢ CỤM với cụm từ/thành ngữ (không dịch từng từ rồi ghép).",
+        'Giữ nguyên "en" y như đầu vào, đúng thứ tự và đúng số lượng phần tử.',
+        'Nếu một từ đã có "ipa" hoặc "vi" thì giữ nguyên giá trị đó, chỉ điền phần còn thiếu.',
+        'Với "type", hãy xác định đúng từ loại của từ đó trong ngữ cảnh chủ đề.',
+        "",
+        "Danh sách đầu vào (JSON):",
+        JSON.stringify({ words: batch }, null, 2),
+      ]
+        .filter(Boolean)
+        .join("\n")
 
-  const payload = await openRouterChatJSON<unknown>(
-    [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    { temperature: 0.2, models: VOCAB_MODELS, reasoning: { enabled: true } }
+      return openRouterChatJSON<unknown>(
+        [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        { temperature: 0.2, models: VOCAB_MODELS, reasoning: { enabled: false }, apiKey: apiKeys[index] }
+      )
+    })
   )
 
-  const parsed = sanitizeWords(payload)
+  const parsed = results.flatMap((result) => (result.status === "fulfilled" ? sanitizeWords(result.value) : []))
 
   /* Ghép kết quả AI với dữ liệu gốc: khớp theo "en", phần nào AI thiếu thì lấy của người dùng */
-  return targets.map((target) => {
+  return dedupeWords(targets.map((target) => {
     const key = target.en.toLowerCase()
     const match = parsed.find((w) => w.en.toLowerCase() === key)
+    const fallbackVi = containsHan(target.vi) ? "" : target.vi
     return {
       en: target.en,
       ipa: match?.ipa || target.ipa,
       type: match?.type ?? "n",
-      vi: match?.vi || target.vi,
+      vi: match?.vi && !containsHan(match.vi) ? match.vi : fallbackVi,
     }
-  })
+  }).filter((word) => !containsHan(word.vi)))
 }

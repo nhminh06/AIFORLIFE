@@ -38,14 +38,12 @@ export async function getAllPhraseSets(): Promise<PhraseSet[]> {
     const colRef = collection(db, "phraseSets")
     const snapshot = await getDocs(colRef)
 
-    if (snapshot.empty) {
-      console.warn("[phrase-service] Firestore rỗng → dùng dữ liệu tĩnh")
-      return staticPhraseSets
-    }
-
-    return snapshot.docs
+    const remote = snapshot.docs
       .map((d) => docToPhraseSet(d.data()))
       .filter((s) => s.slug)
+    const bySlug = new Map(staticPhraseSets.map((set) => [set.slug, set]))
+    remote.forEach((set) => bySlug.set(set.slug, set))
+    return [...bySlug.values()]
   } catch (err) {
     console.error("[phrase-service] Lỗi khi lấy từ Firestore:", err)
     return staticPhraseSets

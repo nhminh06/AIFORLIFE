@@ -186,3 +186,9 @@
  GET /ngu-phap/future-perfect 200 in 141ms (next.js: 29ms, application-code: 112ms)
 ✓ Compiled in 103ms
  GET /ngu-phap/future-perfect 200 in 58ms (next.js: 29ms, application-code: 30ms)
+✓ Compiled in 112ms
+ GET /ngu-phap/future-perfect 200 in 52ms (next.js: 21ms, application-code: 31ms)
+ GET /ngu-phap/future-perfect 200 in 72ms (next.js: 17ms, application-code: 55ms)
+[grammar-practice-ai] Tạo 5 câu bằng 2 key OpenRouter song song.
+[grammar-practice-ai] Provider yêu cầu bật reasoning → thử lại không tắt reasoning.
+ POST /api/ai/grammar/practice 200 in 17.8s (next.js: 8ms, application-code: 17.8s)

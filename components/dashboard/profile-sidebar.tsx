@@ -115,7 +115,7 @@ export function ProfileSidebar() {
       {/* Footer: link ra ngoài */}
       <div className="shrink-0 border-t border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-800 lg:hidden lg:max-h-screen lg:pb-3 lg:pt-0">
         <Link
-          href="https://learnenglish.example.com/privacy"
+          href="https://learnsphere.example.com/privacy"
           target="_blank"
           rel="noreferrer noopener noreferrer"
           className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"

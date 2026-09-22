@@ -1,4 +1,4 @@
-import { BookOpen, Globe, Mail, MessageCircle, Send } from "lucide-react"
+import { Globe, Mail, MessageCircle, Send } from "lucide-react"
 
 const links = ["Giới thiệu", "Liên hệ", "Điều khoản", "Chính sách"]
 const socials = [
@@ -13,12 +13,16 @@ export function SiteFooter() {
     <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 py-8 sm:px-6 md:flex-row md:justify-between lg:px-8">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-            <BookOpen className="h-5 w-5" />
-          </span>
+          <img
+            src="/img/logo.png"
+            alt="LearnSphere"
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-xl object-cover"
+          />
           <div>
             <p className="font-bold text-slate-900 dark:text-white">
-              Learn<span className="text-blue-600 dark:text-blue-400">English</span>
+              Learn<span className="text-blue-600 dark:text-blue-400">Sphere</span>
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">Học mỗi ngày, giỏi mỗi ngày</p>
           </div>

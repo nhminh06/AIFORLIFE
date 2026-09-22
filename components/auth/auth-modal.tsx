@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  BookOpen,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
@@ -129,12 +128,16 @@ export function AuthModal() {
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 p-6 text-white sm:p-8">
           <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-xl" />
           <div className="flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-md">
-              <BookOpen className="h-5 w-5" />
-            </span>
+            <img
+              src="/img/logo.png"
+              alt="LearnSphere"
+              width={40}
+              height={40}
+              className="h-10 w-10 rounded-2xl object-cover shadow-sm"
+            />
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-blue-200">
-                LearnEnglish · AI For Life
+                LearnSphere · Learn English with AI
               </span>
               <h2 className="text-xl font-black text-white sm:text-2xl">
                 {authModalTab === "login" && "Đăng nhập tài khoản"}

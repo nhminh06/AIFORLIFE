@@ -126,7 +126,7 @@
   }
 }
 
-/* ---------- LearnEnglish dark-mode overrides ----------
+/* ---------- LearnSphere dark-mode overrides ----------
    Các trang dùng màu Tailwind cố định (bg-white, text-slate-900...)
    nên cần ánh xạ lại khi <html> có class .dark. CSS thuần đặt sau
    các layer nên sẽ thắng utilities của Tailwind v4. */

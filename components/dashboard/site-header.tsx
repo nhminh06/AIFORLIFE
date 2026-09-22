@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  BookOpen,
   Home,
   Pencil,
   MessageSquare,
@@ -36,11 +35,15 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-600/30">
-            <BookOpen className="h-5 w-5" />
-          </span>
+          <img
+            src="/img/logo.png"
+            alt="LearnSphere"
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-xl object-cover shadow-sm"
+          />
           <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-            Learn<span className="text-blue-600 dark:text-blue-400">English</span>
+            Learn<span className="text-blue-600 dark:text-blue-400">Sphere</span>
           </span>
         </Link>
 

@@ -12,7 +12,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'LearnEnglish — Học tiếng Anh mỗi ngày',
+  title: 'LearnSphere — Học tiếng Anh mỗi ngày',
   description:
     'Nền tảng học tiếng Anh với từ vựng, mẫu câu, ngữ pháp và luyện tập theo dõi tiến độ mỗi ngày.',
   generator: 'v0.app',

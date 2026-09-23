@@ -12,6 +12,8 @@ import { useAuth } from "@/lib/auth-context"
 import type { VocabSet } from "@/lib/data/vocabulary"
 import { loadVocabProgress } from "@/lib/vocab-progress"
 import { getVocabSetBySlug } from "@/lib/vocab-service"
+import { recordReviewRound } from "@/lib/progress/study-log"
+import { useStudySession } from "@/lib/study-tracker"
 
 /* Xáo trộn mảng bằng thuật toán Fisher–Yates (không đổi mảng gốc) */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -57,6 +59,9 @@ export default function OnTapPage() {
   const [loading, setLoading] = useState(true)
   const [learnedKeys, setLearnedKeys] = useState<Set<string>>(new Set())
   const [progressReady, setProgressReady] = useState(false)
+
+  /* Đếm thời gian học thật của phiên ôn tập */
+  useStudySession({ uid, enabled: progressReady })
   const [index, setIndex] = useState(0)
   /* Tăng mỗi lần bấm "Từ ngẫu nhiên" để remount learner ngay cả khi trùng từ */
   const [nonce, setNonce] = useState(0)
@@ -93,6 +98,12 @@ export default function OnTapPage() {
     setProgressReady(true)
     setIndex(0)
   }, [slug, uid])
+
+  /* Ghi nhận 1 lượt ôn tập cho ngày hôm nay (mỗi lần vào trang tính 1 lượt) */
+  useEffect(() => {
+    if (!progressReady || !set) return
+    void recordReviewRound(uid, { slug })
+  }, [progressReady, set, slug, uid])
 
   const queue = useMemo(() => {
     if (!set) return []

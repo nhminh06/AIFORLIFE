@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// ------------------------------------------------------------------
+//  Firestore Security Rules cho AIFORLIFE (English Learning)
+//  - Dữ liệu hệ thống (vocabSets / phraseSets / practiceExercises):
+//    mọi người đọc được, KHÔNG cho client ghi.
+//  - Dữ liệu riêng của từng user (users/{uid}/...):
+//    chỉ chính chủ đăng nhập mới đọc & ghi.
+//
+//  LƯU Ý khi seed dữ liệu hệ thống bằng các script dùng client SDK
+//  (pnpm push:phrases, pnpm seed:practice, scripts/seed-*.ts):
+//  rules này chặn ghi → chạy seed với một trong hai cách sau:
+//    1) Tạm đổi dòng "allow write: if false" của collection cần seed
+//       thành "allow write: if true", deploy, seed xong đổi lại.
+//    2) Hoặc dùng Firebase Console / Admin SDK (service account) để seed.
+// ------------------------------------------------------------------
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------ Dữ liệu hệ thống: chỉ đọc ------
+    match /vocabSets/{slug} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /phraseSets/{slug} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /practiceExercises/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ------ Dữ liệu riêng của user ------
+    // Bao gồm: profile, vocabSets, grammarSets, phraseSets, practiceExercises,
+    // vocabProgress, phraseProgress, grammarProgress, practiceResults,
+    // studyDays, studyEvents, stats, badges.
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

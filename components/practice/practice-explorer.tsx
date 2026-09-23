@@ -23,7 +23,9 @@ export function PracticeExplorer() {
   const { user, openAuthModal } = useAuth()
   const [tab, setTab] = useState<PracticeCategory | "all">("all")
   const [query, setQuery] = useState("")
-  const [allExercises, setAllExercises] = useState(exercises)
+  const [allExercises, setAllExercises] = useState(() => user
+    ? exercises
+    : exercises.map((exercise) => ({ ...exercise, status: "Chưa làm" as const, bestScore: undefined })))
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [creating, setCreating] = useState(false)
@@ -31,7 +33,12 @@ export function PracticeExplorer() {
   useEffect(() => {
     setLoading(true)
     Promise.all([loadDefaultExercises(), user ? loadMyExercises(user.uid) : Promise.resolve([])])
-      .then(([defaults, mine]) => setAllExercises([...mine, ...defaults]))
+      .then(([defaults, mine]) => {
+        const guestDefaults = user
+          ? defaults
+          : defaults.map((exercise) => ({ ...exercise, status: "Chưa làm" as const, bestScore: undefined }))
+        setAllExercises([...mine, ...guestDefaults])
+      })
       .finally(() => setLoading(false))
   }, [user])
 

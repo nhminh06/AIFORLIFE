@@ -17,8 +17,10 @@ export type Badge = {
   name: string
   vi: string
   icon: LucideIcon
-  /** đã đạt được hay chưa */
+  /** đã đạt được hay chưa (giá trị demo — trạng thái thật nằm ở Firestore) */
   earned: boolean
+  /** thời điểm đạt được (ISO), chỉ có khi lấy từ dữ liệu thật */
+  earnedAt?: string
   bg: string
 }
 

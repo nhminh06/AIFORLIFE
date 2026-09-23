@@ -30,7 +30,7 @@ export function GrammarSetCard({ set, mine = false, onDelete, deleting = false }
   const [learned, setLearned] = useState(false)
 
   useEffect(() => {
-    const refresh = () => setLearned(isGrammarLearned(set.slug, user?.uid) || set.progress >= 100)
+    const refresh = () => setLearned(Boolean(user) && isGrammarLearned(set.slug, user?.uid))
     refresh()
     window.addEventListener("afl-grammar-progress-updated", refresh)
     return () => window.removeEventListener("afl-grammar-progress-updated", refresh)

@@ -13,13 +13,13 @@ import {
   YAxis,
 } from "recharts"
 
-import { dailyStudy, weeklyStudy } from "@/lib/data/progress"
+import type { DailyPoint, WeeklyPoint } from "@/lib/progress-service"
 
-export function DailyChart() {
+export function DailyChart({ data }: { data: DailyPoint[] }) {
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={dailyStudy} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
           <XAxis dataKey="day" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
@@ -34,11 +34,11 @@ export function DailyChart() {
   )
 }
 
-export function WeeklyChart() {
+export function WeeklyChart({ data }: { data: WeeklyPoint[] }) {
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={weeklyStudy} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
           <XAxis dataKey="week" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />

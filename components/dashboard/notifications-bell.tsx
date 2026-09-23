@@ -13,11 +13,11 @@ import {
 } from "lucide-react"
 
 import {
-  NOTIF_READ_KEY,
-  initialNotifications,
   toneClass,
   type NotificationIcon,
 } from "@/lib/notifications"
+import { useNotifications } from "@/lib/progress/notifications.hooks"
+import { useAuth } from "@/lib/auth-context"
 
 function NotifIcon({ icon }: { icon: NotificationIcon }) {
   const cls = "h-4 w-4"
@@ -29,26 +29,21 @@ function NotifIcon({ icon }: { icon: NotificationIcon }) {
   return <Sparkles className={cls} />
 }
 
-function loadRead(): string[] {
-  if (typeof window === "undefined") return []
-  try {
-    const raw = localStorage.getItem(NOTIF_READ_KEY)
-    if (!raw) return []
-    const arr = JSON.parse(raw)
-    return Array.isArray(arr) ? arr : []
-  } catch {
-    return []
-  }
+function BellEmpty({ text }: { text: string }) {
+  return (
+    <p className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+      {text}
+    </p>
+  )
 }
 
 export function NotificationsBell() {
   const [open, setOpen] = useState(false)
-  const [readIds, setReadIds] = useState<string[]>([])
   const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    setReadIds(loadRead())
-  }, [])
+  const { user } = useAuth()
+  // Nguồn thật duy nhất: Firestore qua hook. Chưa đăng nhập → [] + count 0.
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications({ limitCount: 50 })
 
   useEffect(() => {
     if (!open) return
@@ -68,27 +63,14 @@ export function NotificationsBell() {
     }
   }, [open ])
 
-  const persist = (ids: string[]) => {
-    setReadIds(ids)
-    try {
-      localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(ids))
-    } catch {
-      /* bỏ qua */
-    }
-  }
-
-  const unread = initialNotifications.filter((n) => !readIds.includes(n.id))
-  const markAll = () => persist(initialNotifications.map((n) => n.id))
-  const markOne = (id: string) => {
-    if (readIds.includes(id)) return
-    persist([...readIds, id])
-  }
+  const markAll = () => void markAllAsRead()
+  const markOne = (id: string) => void markAsRead(id)
 
   return (
     <div ref={wrapRef} className="relative">
       <button
         type="button"
-        aria-label={unread.length > 0 ? `Thông báo (${unread.length} chưa đọc)` : "Thông báo"}
+        aria-label={unreadCount > 0 ? `Thông báo (${unreadCount} chưa đọc)` : "Thông báo"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
@@ -96,9 +78,9 @@ export function NotificationsBell() {
         }`}
       >
         <Bell className="h-5 w-5" />
-        {unread.length > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-slate-900">
-            {unread.length > 9 ? "9+" : unread.length}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
@@ -108,16 +90,16 @@ export function NotificationsBell() {
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
             <p className="font-bold text-slate-900 dark:text-white">
               Thông báo{" "}
-              {unread.length > 0 && (
+              {unreadCount > 0 && (
                 <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600 dark:bg-red-950/50 dark:text-red-400">
-                  {unread.length} mới
+                  {unreadCount} mới
                 </span>
               )}
             </p>
             <button
               type="button"
               onClick={markAll}
-              disabled={unread.length === 0}
+              disabled={unreadCount === 0}
               className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700 disabled:text-slate-300 dark:text-blue-400 dark:hover:text-blue-300 dark:disabled:text-slate-600"
             >
               <CheckCheck className="h-3.5 w-3.5" />
@@ -125,9 +107,14 @@ export function NotificationsBell() {
             </button>
           </div>
 
+          {!user ? (
+            <BellEmpty text="Đăng nhập để nhận thông báo về streak, huy hiệu và bài học mới." />
+          ) : notifications.length === 0 ? (
+            <BellEmpty text="Chưa có thông báo nào." />
+          ) : (
           <ul className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
-            {initialNotifications.map((n) => {
-              const isUnread = !readIds.includes(n.id)
+            {notifications.map((n) => {
+              const isUnread = !n.read
               return (
                 <li key={n.id}>
                   <button
@@ -161,6 +148,7 @@ export function NotificationsBell() {
               )
             })}
           </ul>
+          )}
         </div>
       )}
     </div>

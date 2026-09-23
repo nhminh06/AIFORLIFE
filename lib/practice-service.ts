@@ -10,6 +10,11 @@ function localResults(): Record<string, PracticeResult> {
   try { return JSON.parse(localStorage.getItem(LOCAL_RESULTS_KEY) || "{}") as Record<string, PracticeResult> } catch { return {} }
 }
 
+/** Kết quả bài luyện đã lưu ở localStorage (bản sao, không sửa trực tiếp). */
+export function getLocalPracticeResults(): Record<string, PracticeResult> {
+  return localResults()
+}
+
 export function saveLocalPracticeResult(id: string, result: PracticeResult) {
   if (typeof window === "undefined") return
   localStorage.setItem(LOCAL_RESULTS_KEY, JSON.stringify({ ...localResults(), [id]: result }))

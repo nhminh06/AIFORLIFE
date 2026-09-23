@@ -53,6 +53,7 @@ export function markPhraseLearned(
   uid: string | null | undefined,
   phraseKey: string
 ): Set<string> {
+  if (!uid) return readKeys(slug, uid)
   const next = readKeys(slug, uid)
   next.add(phraseKey.toLowerCase())
   writeKeys(slug, uid, next)
@@ -65,6 +66,7 @@ export function unmarkPhraseLearned(
   uid: string | null | undefined,
   phraseKey: string
 ): Set<string> {
+  if (!uid) return readKeys(slug, uid)
   const next = readKeys(slug, uid)
   next.delete(phraseKey.toLowerCase())
   writeKeys(slug, uid, next)

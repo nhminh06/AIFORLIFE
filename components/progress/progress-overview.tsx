@@ -1,9 +1,14 @@
-import { courseProgress, overviewStats } from "@/lib/data/progress"
+import type { OverviewStat } from "@/lib/progress-service"
 
 const R = 64
 const CIRC = 2 * Math.PI * R
 
-export function ProgressOverview() {
+type Props = {
+  courseProgress: number
+  stats: OverviewStat[]
+}
+
+export function ProgressOverview({ courseProgress, stats }: Props) {
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm shadow-slate-200/50 sm:col-span-2 xl:col-span-1">
@@ -30,7 +35,7 @@ export function ProgressOverview() {
         <p className="mt-2 text-xs text-slate-400">Cố lên, bạn đã đi được nửa đường!</p>
       </section>
 
-      {overviewStats.map((s) => {
+      {stats.map((s) => {
         const Icon = s.icon
         return (
           <section

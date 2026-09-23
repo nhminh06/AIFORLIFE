@@ -12,6 +12,9 @@ import { useAuth } from "@/lib/auth-context"
 import type { VocabSet, VocabWord } from "@/lib/data/vocabulary"
 import { loadVocabProgress, markVocabLearned } from "@/lib/vocab-progress"
 import { getVocabSetBySlug } from "@/lib/vocab-service"
+import { logVocabLearnedChange, logVocabSetCompleted } from "@/lib/progress/study-log"
+import { queueVocabProgressSync } from "@/lib/progress/vocab-progress-cloud"
+import { useStudySession } from "@/lib/study-tracker"
 
 export default function HocTuPage() {
   const params = useParams<{ slug: string }>()
@@ -31,6 +34,9 @@ export default function HocTuPage() {
    * không bị unmount ngay khi từ đó vừa được đánh dấu đã thuộc.
    */
   const [sessionWords, setSessionWords] = useState<VocabWord[] | null>(null)
+
+  /* Đếm thời gian học thật của phiên này (nguồn cho biểu đồ "Thời gian học theo ngày") */
+  useStudySession({ uid, enabled: Boolean(set) })
 
   useEffect(() => {
     let cancelled = false
@@ -77,8 +83,15 @@ export default function HocTuPage() {
   const percent = total === 0 ? 0 : Math.round((learnedCount / total) * 100)
 
   const handleLearned = () => {
-    if (!current) return
-    setLearnedKeys(markVocabLearned(slug, uid, current.en.toLowerCase()))
+    if (!current || !set) return
+    const next = markVocabLearned(slug, uid, current.en.toLowerCase())
+    setLearnedKeys(next)
+    /* Ghi nhận lên sổ tiến độ: số từ mới + XP + sự kiện trong ngày */
+    void logVocabLearnedChange(uid, { slug, title: set.name, on: true })
+    queueVocabProgressSync(uid, slug, next)
+    if (set.words.length > 0 && set.words.every((w) => next.has(w.en.toLowerCase()))) {
+      void logVocabSetCompleted(uid, { slug, title: set.name })
+    }
   }
 
   const handleWordDone = () => {

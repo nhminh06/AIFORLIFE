@@ -15,6 +15,8 @@ import { getSetIcon } from "@/lib/data/set-icons"
 import { getVocabTopicForSet, levelClass, type VocabSet } from "@/lib/data/vocabulary"
 import { loadVocabProgress, markVocabLearned, unmarkVocabLearned } from "@/lib/vocab-progress"
 import { getVocabSetBySlug } from "@/lib/vocab-service"
+import { logVocabLearnedChange, logVocabSetCompleted } from "@/lib/progress/study-log"
+import { queueVocabProgressSync } from "@/lib/progress/vocab-progress-cloud"
 
 /** Số từ vựng hiển thị trên mỗi trang của bộ từ */
 const WORDS_PER_PAGE = 8
@@ -22,7 +24,7 @@ const WORDS_PER_PAGE = 8
 export default function TuVungDetailPage() {
   const params = useParams<{ slug: string }>()
   const slug = params.slug
-  const { user } = useAuth()
+  const { user, openAuthModal } = useAuth()
 
   const [set, setSet] = useState<VocabSet | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,7 +61,7 @@ export default function TuVungDetailPage() {
 
   /* Nạp tiến độ đã thuộc từ localStorage (theo slug + uid) */
   useEffect(() => {
-    setLearnedWords(loadVocabProgress(slug, uid))
+    setLearnedWords(uid ? loadVocabProgress(slug, uid) : new Set())
   }, [slug, uid])
 
   if (loading) {
@@ -132,9 +134,25 @@ export default function TuVungDetailPage() {
 
   /** Đánh dấu đã thuộc + lưu localStorage để trang Học/Ôn tập dùng chung */
   const handleLearnedChange = (wordKey: string, on: boolean) => {
+    if (!user) {
+      openAuthModal("login")
+      return
+    }
     toggleInSet(setLearnedWords, wordKey, on)
+    const next = new Set(learnedWords)
+    if (on) next.add(wordKey)
+    else next.delete(wordKey)
+
     if (on) markVocabLearned(slug, uid, wordKey)
     else unmarkVocabLearned(slug, uid, wordKey)
+
+    /* Ghi nhận lên sổ tiến độ học tập + đồng bộ lên cloud */
+    void logVocabLearnedChange(user.uid, { slug, title: set.name, on })
+    queueVocabProgressSync(user.uid, slug, next)
+
+    if (on && set.words.length > 0 && set.words.every((w) => next.has(w.en.toLowerCase()))) {
+      void logVocabSetCompleted(user.uid, { slug, title: set.name })
+    }
   }
 
   return (

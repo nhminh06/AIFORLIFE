@@ -23,7 +23,7 @@ import { PhraseSetCard } from "./phrase-set-card"
 const SETS_PER_PAGE = 9
 
 export function PhraseExplorer() {
-  const { user } = useAuth()
+  const { user, openAuthModal } = useAuth()
   const [query, setQuery] = useState("")
   const [sit, setSit] = useState("all")
   const [sets, setSets] = useState<PhraseSet[]>(staticPhraseSets)
@@ -76,7 +76,8 @@ export function PhraseExplorer() {
   useEffect(() => {
     let cancelled = false
     if (!user?.uid) {
-      setProgressLoaded(false)
+      setProgressCounts({})
+      setProgressLoaded(true)
       return
     }
     ;(async () => {
@@ -170,7 +171,13 @@ export function PhraseExplorer() {
           />
           <button
             type="button"
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              if (!user) {
+                openAuthModal("login")
+                return
+              }
+              setCreating(true)
+            }}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-600/25 transition-all hover:bg-green-700"
           >
             <Plus className="h-4 w-4" />
@@ -201,7 +208,7 @@ export function PhraseExplorer() {
                 set={s}
                 mine={mySetSlugs.has(s.slug)}
                 realLearned={
-                  progressLoaded ? (progressCounts[s.slug] ?? 0) : undefined
+                  user ? (progressLoaded ? (progressCounts[s.slug] ?? 0) : undefined) : 0
                 }
               />
             ))}

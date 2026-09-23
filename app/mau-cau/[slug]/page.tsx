@@ -20,12 +20,14 @@ import {
 } from "@/lib/phrase-progress"
 import { getPhraseSetBySlug } from "@/lib/phrase-service"
 import { syncMyPhraseLearned } from "@/lib/user-phrases"
+import { logPhraseLearnedChange, logPhraseSetCompleted } from "@/lib/progress/study-log"
+import { useStudySession } from "@/lib/study-tracker"
 import { cn } from "@/lib/utils"
 
 export default function MauCauDetailPage() {
   const params = useParams<{ slug: string }>()
   const slug = params.slug
-  const { user } = useAuth()
+  const { user, openAuthModal } = useAuth()
 
   const [set, setSet] = useState<(PhraseSet & { ownerId?: string }) | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,6 +35,9 @@ export default function MauCauDetailPage() {
   const [learnedKeys, setLearnedKeys] = useState<Set<string>>(new Set())
 
   const uid = user?.uid
+
+  /* Đếm thời gian học thật của phiên này */
+  useStudySession({ uid, enabled: Boolean(set) })
 
   useEffect(() => {
     let cancelled = false
@@ -56,7 +61,7 @@ export default function MauCauDetailPage() {
   /* Nạp tiến độ đã học: localStorage trước (nhanh), rồi Firestore khi đăng nhập (nguồn chuẩn) */
   useEffect(() => {
     let cancelled = false
-    setLearnedKeys(loadPhraseProgress(slug, uid))
+    setLearnedKeys(uid ? loadPhraseProgress(slug, uid) : new Set())
     if (!uid) return
     ;(async () => {
       const cloud = await loadPhraseProgressCloud(slug, uid)
@@ -115,6 +120,10 @@ export default function MauCauDetailPage() {
 
   /** Đánh dấu đã học + lưu localStorage + đồng bộ Firestore (bộ cá nhân) */
   const handleLearnedChange = (phraseKey: string, on: boolean) => {
+    if (!user) {
+      openAuthModal("login")
+      return
+    }
     const next = new Set(learnedKeys)
     if (on) next.add(phraseKey)
     else next.delete(phraseKey)
@@ -130,6 +139,13 @@ export default function MauCauDetailPage() {
     if (isMine && uid) {
       const count = set.items.filter((p) => next.has(p.en.trim().toLowerCase())).length
       void syncMyPhraseLearned(uid, slug, count)
+    }
+
+    /* Ghi nhận lên sổ tiến độ học tập (bộ đếm ngày + XP + lịch sử hoạt động) */
+    void logPhraseLearnedChange(user.uid, { slug, title: set.name, on })
+    const keyedItems = set.items.map((p) => p.en.trim().toLowerCase())
+    if (on && keyedItems.length > 0 && keyedItems.every((k) => next.has(k))) {
+      void logPhraseSetCompleted(user.uid, { slug, title: set.name })
     }
   }
 

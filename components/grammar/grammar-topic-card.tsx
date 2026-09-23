@@ -13,7 +13,7 @@ export function GrammarTopicCard({ topic }: { topic: GrammarTopic }) {
   const [learned, setLearned] = useState(false)
 
   useEffect(() => {
-    const refresh = () => setLearned(isGrammarLearned(topic.slug, user?.uid) || topic.progress >= 100)
+    const refresh = () => setLearned(Boolean(user) && isGrammarLearned(topic.slug, user?.uid))
     refresh()
     window.addEventListener("afl-grammar-progress-updated", refresh)
     return () => window.removeEventListener("afl-grammar-progress-updated", refresh)

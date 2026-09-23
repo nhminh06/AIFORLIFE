@@ -83,8 +83,13 @@ export function VocabExplorer() {
   useEffect(() => {
     if (typeof window === "undefined") return
     const recalc = () => {
-      const uid = user?.uid ?? null
       const map: Record<string, number> = {}
+      if (!user) {
+        for (const s of sets) map[s.slug] = 0
+        setProgressMap(map)
+        return
+      }
+      const uid = user.uid
       for (const s of sets) {
         const learned = loadVocabProgress(s.slug, uid)
         map[s.slug] = s.words.filter((w) => learned.has(w.en.toLowerCase())).length
@@ -250,9 +255,6 @@ export function VocabExplorer() {
         </>
       )}
 
-      <p className="text-[11px] text-slate-400">
-        Bộ từ bạn tự tạo được gắn nhãn “Của tôi” và chỉ hiển thị với tài khoản của bạn.
-      </p>
 
       {creating && (
         <CreateVocabSetModal

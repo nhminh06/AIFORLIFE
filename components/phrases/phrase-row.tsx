@@ -26,8 +26,8 @@ export function PhraseRow({ en, vi, learned: learnedProp, onLearnedChange }: Phr
 
   const toggleLearned = () => {
     const next = !learned
-    setLearnedLocal(next)
-    onLearnedChange?.(next)
+    if (onLearnedChange) onLearnedChange(next)
+    else setLearnedLocal(next)
   }
 
   return (

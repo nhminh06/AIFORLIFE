@@ -44,8 +44,8 @@ export function VocabWordRow({
 
   const toggleLearned = () => {
     const next = !learned
-    setLearnedLocal(next)
-    onLearnedChange?.(next)
+    if (onLearnedChange) onLearnedChange(next)
+    else setLearnedLocal(next)
   }
 
   const toggleLiked = () => {

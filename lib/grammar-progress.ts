@@ -22,6 +22,7 @@ export function isGrammarLearned(slug: string, uid?: string | null) {
 }
 
 export function setGrammarLearned(slug: string, uid: string | null | undefined, learned: boolean) {
+  if (!uid) return false
   const values = read(uid)
   if (learned) values.add(slug)
   else values.delete(slug)
@@ -32,4 +33,9 @@ export function setGrammarLearned(slug: string, uid: string | null | undefined, 
 export function countGrammarLearned(slugs: string[], uid?: string | null) {
   const values = read(uid)
   return slugs.filter((slug) => values.has(slug)).length
+}
+
+/** Tập slug các chủ điểm ngữ pháp đã học (localStorage). */
+export function loadGrammarLearned(uid?: string | null): Set<string> {
+  return read(uid)
 }

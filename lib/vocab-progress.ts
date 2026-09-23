@@ -41,6 +41,7 @@ export function markVocabLearned(
   uid: string | null | undefined,
   wordKey: string
 ): Set<string> {
+  if (!uid) return readKeys(slug, uid)
   const next = readKeys(slug, uid)
   next.add(wordKey.toLowerCase())
   writeKeys(slug, uid, next)
@@ -53,6 +54,7 @@ export function unmarkVocabLearned(
   uid: string | null | undefined,
   wordKey: string
 ): Set<string> {
+  if (!uid) return readKeys(slug, uid)
   const next = readKeys(slug, uid)
   next.delete(wordKey.toLowerCase())
   writeKeys(slug, uid, next)

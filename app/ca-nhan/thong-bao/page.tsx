@@ -1,20 +1,14 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Bell, CheckCheck, Sparkles } from "lucide-react"
-
-import {
-  initialNotifications,
-  getReadIds,
-  markAllNotificationsRead,
-  markNotificationRead,
-  type AppNotification,
-} from "@/lib/notifications"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { NotificationItem } from "@/components/profile/notification-item"
+import { useNotifications } from "@/lib/progress/notifications.hooks"
+import { useAuth } from "@/lib/auth-context"
 
 export const dynamic = "force-dynamic"
 
@@ -27,37 +21,25 @@ const FILTERS: { key: Filter; label: string }[] = [
 ]
 
 export default function ThongBaoPage() {
-  const [readIds, setReadIds] = useState<string[]>([])
   const [filter, setFilter] = useState<Filter>("all")
-
-  useEffect(() => {
-    const load = () => setReadIds(getReadIds())
-    load()
-    window.addEventListener("storage", load)
-    window.addEventListener("learnenglish-notif-changed" as any, load)
-    return () => {
-      window.removeEventListener("storage", load)
-      window.removeEventListener("learnenglish-notif-changed" as any, load)
-    }
-  }, [])
-
-  const unreadCount = initialNotifications.filter((n) => !readIds.includes(n.id)).length
+  const { user } = useAuth()
+  // Cùng nguồn với chuông: Firestore qua hook. Chưa đăng nhập → rỗng.
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
+    useNotifications({ limitCount: 50 })
 
   const items = useMemo(() => {
-    const list = initialNotifications.map(
-      (n): AppNotification => ({ ...n, read: readIds.includes(n.id) })
-    )
-    if (filter === "all") return list
-    return list.filter((n) => n.read === (filter === "read"))
-  }, [readIds, filter])
+    if (!user) return []
+    if (filter === "all") return notifications
+    return notifications.filter((n) => n.read === (filter === "read"))
+  }, [notifications, user, filter])
 
-  const handleMarkAll = () => setReadIds(markAllNotificationsRead())
-  const handleMarkOne = (id: string) => setReadIds(markNotificationRead(id))
+  const handleMarkAll = () => void markAllAsRead()
+  const handleMarkOne = (id: string) => void markAsRead(id)
 
   const chipCount = (f: Filter) => {
-    if (f === "all") return initialNotifications.length
+    if (f === "all") return notifications.length
     if (f === "unread") return unreadCount
-    return initialNotifications.length - unreadCount
+    return notifications.length - unreadCount
   }
 
   return (
@@ -123,9 +105,20 @@ export default function ThongBaoPage() {
           )}
         </div>
 
-        {/* List */}
+        {/* List: guest -> nhac dang nhap, dang tai -> loading, rong -> empty */}
         <div className="mt-5">
-          {items.length === 0 ? (
+          {!user ? (
+            <div className="py-12 text-center">
+              <Bell className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
+              <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+                Vui lòng đăng nhập để xem thông báo.
+              </p>
+            </div>
+          ) : loading ? (
+            <div className="py-12 text-center">
+              <p className="text-sm text-slate-500 dark:text-slate-400">Đang tải...</p>
+            </div>
+          ) : items.length === 0 ? (
             <div className="py-12 text-center">
               <Sparkles className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -153,4 +146,3 @@ export default function ThongBaoPage() {
     </SiteShell>
   )
 }
-

@@ -2,32 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { BookText, CheckCircle2, Flame } from "lucide-react"
-import { getAllVocabSets } from "@/lib/vocab-service"
-import { loadVocabProgress } from "@/lib/vocab-progress"
 import { useAuth } from "@/lib/auth-context"
-import { loadDailyVocabDays, todayKey } from "@/lib/daily-vocab"
-import { getMyVocabSets } from "@/lib/user-vocab"
-import { getAllPhraseSets } from "@/lib/phrase-service"
-import { getMyPhraseSets } from "@/lib/user-phrases"
-import { loadPhraseProgress } from "@/lib/phrase-progress"
-import { grammarTopics } from "@/lib/data/grammar"
-import { getMyGrammarSets } from "@/lib/user-grammar"
-import { loadDefaultExercises, loadMyExercises } from "@/lib/practice-service"
-import { countGrammarLearned } from "@/lib/grammar-progress"
+import { PROGRESS_UPDATED_EVENT } from "@/lib/progress/local-store"
+import { getStatsSummary } from "@/lib/progress-service"
 
 const RADIUS = 52
 const CIRC = 2 * Math.PI * RADIUS
-
-function getStreak(uid?: string | null): number {
-  const days = new Set(loadDailyVocabDays(uid).map((day) => day.date))
-  let streak = 0
-  const cursor = new Date()
-  while (days.has(todayKey(cursor))) {
-    streak += 1
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  return streak
-}
 
 export function StudyStatsCard() {
   const { user } = useAuth()
@@ -39,39 +19,44 @@ export function StudyStatsCard() {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    const load = () => Promise.all([
-      getAllVocabSets(), user ? getMyVocabSets(user.uid) : Promise.resolve([]),
-      getAllPhraseSets(), user ? getMyPhraseSets(user.uid) : Promise.resolve([]),
-      user ? getMyGrammarSets(user.uid) : Promise.resolve([]),
-      loadDefaultExercises(), user ? loadMyExercises(user.uid) : Promise.resolve([]),
-    ]).then(([systemSets, mySets, systemPhrases, myPhrases, myGrammar, defaultExercises, myExercises]) => {
-      const sets = [...mySets, ...systemSets]
-      const learnedCounts = sets.map((set) => loadVocabProgress(set.slug, user?.uid).size)
-      const learned = learnedCounts.reduce((sum, count) => sum + count, 0)
-      const total = sets.reduce((sum, set) => sum + set.total, 0)
-      const phrases = [...myPhrases, ...systemPhrases]
-      const phraseLearned = phrases.reduce((sum, set) => sum + loadPhraseProgress(set.slug, user?.uid).size, 0)
-      const grammarCount = grammarTopics.length + myGrammar.length
-      const completedExercises = [...defaultExercises, ...myExercises].filter((exercise) => exercise.status === "Hoàn thành").length
-      const completedVocab = sets.filter((set, index) => set.total > 0 && learnedCounts[index] >= set.total).length
-      const completedPhrases = phrases.filter((set) => set.total > 0 && loadPhraseProgress(set.slug, user?.uid).size >= set.total).length
-      const completedGrammar = countGrammarLearned([...grammarTopics.map((topic) => topic.slug), ...myGrammar.map((set) => set.slug)], user?.uid)
-      const overallTotal = total + phrases.reduce((sum, set) => sum + set.total, 0) + grammarCount
-      const overallLearned = learned + phraseLearned + myGrammar.filter((set) => set.progress >= 100).length
-      setProgress(overallTotal ? Math.min(100, Math.round((overallLearned / overallTotal) * 100)) : 0)
-      setStats([
-        { label: "Từ đã học", value: learned.toLocaleString("vi-VN"), icon: BookText, color: "text-blue-600 bg-blue-50" },
-        { label: "Đã hoàn thành", value: (completedVocab + completedPhrases + completedGrammar + completedExercises).toString(), icon: CheckCircle2, color: "text-green-600 bg-green-50" },
-        { label: "Ngày liên tiếp", value: getStreak(user?.uid).toString(), icon: Flame, color: "text-orange-500 bg-orange-50" },
-      ])
-    })
+    let cancelled = false
+    /* Dùng chung nguồn số liệu với trang /tien-do để 2 nơi không lệch số */
+    const load = () => {
+      getStatsSummary(user?.uid).then((summary) => {
+        if (cancelled) return
+        setProgress(summary.courseProgress)
+        setStats([
+          {
+            label: "Từ đã học",
+            value: summary.wordsLearned.toLocaleString("vi-VN"),
+            icon: BookText,
+            color: "text-blue-600 bg-blue-50",
+          },
+          {
+            label: "Đã hoàn thành",
+            value: summary.completedLessons.toString(),
+            icon: CheckCircle2,
+            color: "text-green-600 bg-green-50",
+          },
+          {
+            label: "Ngày liên tiếp",
+            value: summary.currentStreak.toString(),
+            icon: Flame,
+            color: "text-orange-500 bg-orange-50",
+          },
+        ])
+      })
+    }
     load()
     const refresh = () => { load() }
+    window.addEventListener(PROGRESS_UPDATED_EVENT, refresh)
     window.addEventListener("afl-vocab-progress-updated", refresh)
     window.addEventListener("afl-phrase-progress-updated", refresh)
     window.addEventListener("afl-grammar-progress-updated", refresh)
     window.addEventListener("focus", refresh)
     return () => {
+      cancelled = true
+      window.removeEventListener(PROGRESS_UPDATED_EVENT, refresh)
       window.removeEventListener("afl-vocab-progress-updated", refresh)
       window.removeEventListener("afl-phrase-progress-updated", refresh)
       window.removeEventListener("afl-grammar-progress-updated", refresh)

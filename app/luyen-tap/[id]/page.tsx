@@ -11,6 +11,8 @@ import { getPracticeType, statusClass, type Exercise } from "@/lib/data/practice
 import { loadDefaultExercise, loadMyExercise, saveLocalPracticeResult } from "@/lib/practice-service"
 import { useAuth } from "@/lib/auth-context"
 import { updateMyExerciseResult } from "@/lib/user-practice"
+import { recordPracticeCompletion } from "@/lib/progress/study-log"
+import { useStudySession } from "@/lib/study-tracker"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -20,12 +22,18 @@ export default function LuyenTapDetailPage({ params }: Props) {
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [loading, setLoading] = useState(true)
 
+  /* Đếm thời gian học thật của phiên làm bài */
+  useStudySession({ uid: user?.uid, enabled: Boolean(exercise) })
+
   useEffect(() => {
     let active = true
     const request = user && id.startsWith("ai-")
       ? loadMyExercise(user.uid, id)
       : loadDefaultExercise(id)
-    request.then((result) => active && setExercise(result)).finally(() => active && setLoading(false))
+    request.then((result) => {
+      if (!active) return
+      setExercise(user || !result ? result : { ...result, status: "Chưa làm", bestScore: undefined })
+    }).finally(() => active && setLoading(false))
     return () => { active = false }
   }, [id, user])
 
@@ -35,6 +43,7 @@ export default function LuyenTapDetailPage({ params }: Props) {
   const type = getPracticeType(exercise.typeId)
   const TypeIcon = type.icon
   const handleCompleted = (result: { score: number; total: number }) => {
+    if (!user) return
     saveLocalPracticeResult(exercise.id, result)
     window.dispatchEvent(new CustomEvent("afl-practice-completed", { detail: { id: exercise.id, result } }))
     if (user && exercise.id.startsWith("ai-")) {
@@ -42,6 +51,16 @@ export default function LuyenTapDetailPage({ params }: Props) {
         console.error("[practice-detail] Không lưu được kết quả:", error)
       })
     }
+    /* Ghi nhận lên sổ tiến độ: bài hoàn thành + XP theo số câu đúng + lịch sử hoạt động */
+    void recordPracticeCompletion(user?.uid, {
+      exerciseId: exercise.id,
+      name: exercise.name,
+      vi: exercise.vi,
+      typeId: exercise.typeId,
+      kindLabel: type.label,
+      score: result.score,
+      total: result.total,
+    })
   }
 
   return (

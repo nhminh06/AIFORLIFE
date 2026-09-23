@@ -25,11 +25,14 @@ import {
 } from "@/lib/data/grammar"
 import { getMyGrammarSetBySlug } from "@/lib/user-grammar"
 import { isGrammarLearned, setGrammarLearned } from "@/lib/grammar-progress"
+import { saveGrammarLearnedCloud } from "@/lib/progress/grammar-progress-cloud"
+import { logGrammarLearnedChange } from "@/lib/progress/study-log"
+import { useStudySession } from "@/lib/study-tracker"
 
 export default function NguPhapDetailPage() {
   const params = useParams<{ slug: string }>()
   const slug = params.slug
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, openAuthModal } = useAuth()
 
   const [topic, setTopic] = useState<GrammarTopic | null>(null)
   /** chủ điểm do chính user tạo (myg-*) → hiện nhãn "Của tôi" */
@@ -72,6 +75,9 @@ export default function NguPhapDetailPage() {
     setLearned(isGrammarLearned(slug, user?.uid))
   }, [slug, user?.uid])
 
+  /* Đếm thời gian học thật của phiên này */
+  useStudySession({ uid: user?.uid, enabled: Boolean(topic) })
+
   if (loading || authLoading) {
     return (
       <SiteShell>
@@ -105,6 +111,18 @@ export default function NguPhapDetailPage() {
       </SiteShell>
     )
   }
+  /** Đánh dấu / bỏ đánh dấu chủ điểm đã học + ghi nhận lên sổ tiến độ */
+  const handleToggleLearned = () => {
+    if (!user) {
+      openAuthModal("login")
+      return
+    }
+    const next = !learned
+    setLearned(setGrammarLearned(topic.slug, user.uid, next))
+    void logGrammarLearnedChange(user.uid, { slug: topic.slug, title: topic.name, on: next })
+    void saveGrammarLearnedCloud(user.uid, topic.slug, next)
+  }
+
   return (
     <SiteShell>
       <Link
@@ -140,7 +158,7 @@ export default function NguPhapDetailPage() {
 
       <button
         type="button"
-        onClick={() => setLearned(setGrammarLearned(topic.slug, user?.uid, !learned))}
+        onClick={handleToggleLearned}
         className={`mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${learned ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-purple-600 text-white hover:bg-purple-700"}`}
       >
         <Check className="h-4 w-4" />

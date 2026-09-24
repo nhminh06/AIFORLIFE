@@ -113,7 +113,7 @@ export function getOpenRouterModels(): string[] {
 }
 
 /** Lỗi khi gọi OpenRouter — `retryable` cho biết có nên thử lại hay không */
-class OpenRouterError extends Error {
+export class OpenRouterError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean

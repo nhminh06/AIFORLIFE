@@ -18,6 +18,8 @@ export type StudyDay = {
   grammarCompleted: number
   /** số bài luyện tập hoàn thành trong ngày */
   exercisesCompleted: number
+  /** số bài học hoàn thành trong ngày (bộ từ vựng / bộ mẫu câu đã học hết 100%) */
+  lessonsCompleted: number
   /** số lượt ôn tập từ vựng trong ngày */
   reviews: number
   /** tổng XP kiếm được trong ngày */

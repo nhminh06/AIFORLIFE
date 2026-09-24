@@ -84,12 +84,14 @@ export default function HocTuPage() {
 
   const handleLearned = () => {
     if (!current || !set) return
+    /* Bộ đã hoàn thành sẵn? → chỉ ghi nhận khi VỪA đạt 100% để không cộng bài học/XP trùng */
+    const wasComplete = set.words.length > 0 && set.words.every((w) => learnedKeys.has(w.en.toLowerCase()))
     const next = markVocabLearned(slug, uid, current.en.toLowerCase())
     setLearnedKeys(next)
     /* Ghi nhận lên sổ tiến độ: số từ mới + XP + sự kiện trong ngày */
     void logVocabLearnedChange(uid, { slug, title: set.name, on: true })
     queueVocabProgressSync(uid, slug, next)
-    if (set.words.length > 0 && set.words.every((w) => next.has(w.en.toLowerCase()))) {
+    if (!wasComplete && set.words.length > 0 && set.words.every((w) => next.has(w.en.toLowerCase()))) {
       void logVocabSetCompleted(uid, { slug, title: set.name })
     }
   }

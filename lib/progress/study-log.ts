@@ -43,17 +43,22 @@ export async function logVocabLearnedChange(
   }
 }
 
-/** Bộ từ vừa được học hết (100%). */
+/** Bộ từ vừa được học hết (100%) — tính như 1 bài học: cộng bộ đếm ngày + XP + lịch sử hoạt động. */
 export async function logVocabSetCompleted(
   uid: string | null | undefined,
   input: { slug: string; title: string }
 ): Promise<void> {
+  await addStudyCounters(uid, {
+    lessonsCompleted: 1,
+    xp: xpRules.vocabSet,
+    xpParts: { vocab: xpRules.vocabSet },
+  })
   await recordStudyEvent(uid, {
     type: "vocab_set_done",
     refId: input.slug,
     title: input.title,
     count: 1,
-    xp: 0,
+    xp: xpRules.vocabSet,
   })
 }
 
@@ -83,17 +88,22 @@ export async function logPhraseLearnedChange(
   }
 }
 
-/** Bộ mẫu câu vừa được học hết (100%). */
+/** Bộ mẫu câu vừa được học hết (100%) — tính như 1 bài học: cộng bộ đếm ngày + XP + lịch sử hoạt động. */
 export async function logPhraseSetCompleted(
   uid: string | null | undefined,
   input: { slug: string; title: string }
 ): Promise<void> {
+  await addStudyCounters(uid, {
+    lessonsCompleted: 1,
+    xp: xpRules.phraseSet,
+    xpParts: { phrase: xpRules.phraseSet },
+  })
   await recordStudyEvent(uid, {
     type: "phrase_set_done",
     refId: input.slug,
     title: input.title,
     count: 1,
-    xp: 0,
+    xp: xpRules.phraseSet,
   })
 }
 

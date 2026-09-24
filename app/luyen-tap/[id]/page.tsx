@@ -29,7 +29,7 @@ export default function LuyenTapDetailPage({ params }: Props) {
     let active = true
     const request = user && id.startsWith("ai-")
       ? loadMyExercise(user.uid, id)
-      : loadDefaultExercise(id)
+      : loadDefaultExercise(id, user?.uid)
     request.then((result) => {
       if (!active) return
       setExercise(user || !result ? result : { ...result, status: "Chưa làm", bestScore: undefined })
@@ -43,8 +43,11 @@ export default function LuyenTapDetailPage({ params }: Props) {
   const type = getPracticeType(exercise.typeId)
   const TypeIcon = type.icon
   const handleCompleted = (result: { score: number; total: number }) => {
-    if (!user) return
-    saveLocalPracticeResult(exercise.id, result)
+    /* Khách chưa có tài khoản → giữ kết quả tại trình duyệt này;
+       đã đăng nhập → kết quả đi thẳng lên Firestore của riêng user (không ghi local dùng chung). */
+    if (!user) {
+      saveLocalPracticeResult(exercise.id, result)
+    }
     window.dispatchEvent(new CustomEvent("afl-practice-completed", { detail: { id: exercise.id, result } }))
     if (user && exercise.id.startsWith("ai-")) {
       updateMyExerciseResult(user.uid, exercise.id, result).catch((error) => {

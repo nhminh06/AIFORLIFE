@@ -139,6 +139,8 @@ export default function TuVungDetailPage() {
       return
     }
     toggleInSet(setLearnedWords, wordKey, on)
+    /* Bộ đang hoàn thành sẵn? → chỉ ghi nhận khi VỪA đạt 100% (tránh cộng bài học/XP trùng) */
+    const wasComplete = set.words.length > 0 && set.words.every((w) => learnedWords.has(w.en.toLowerCase()))
     const next = new Set(learnedWords)
     if (on) next.add(wordKey)
     else next.delete(wordKey)
@@ -150,7 +152,7 @@ export default function TuVungDetailPage() {
     void logVocabLearnedChange(user.uid, { slug, title: set.name, on })
     queueVocabProgressSync(user.uid, slug, next)
 
-    if (on && set.words.length > 0 && set.words.every((w) => next.has(w.en.toLowerCase()))) {
+    if (on && !wasComplete && set.words.length > 0 && set.words.every((w) => next.has(w.en.toLowerCase()))) {
       void logVocabSetCompleted(user.uid, { slug, title: set.name })
     }
   }

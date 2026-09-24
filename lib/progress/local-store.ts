@@ -36,6 +36,7 @@ function emptyDay(date: string): StudyDay {
     phrasesLearned: 0,
     grammarCompleted: 0,
     exercisesCompleted: 0,
+    lessonsCompleted: 0,
     reviews: 0,
     xp: 0,
   }
@@ -48,7 +49,13 @@ function readDays(uid?: string | null): StudyDay[] {
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter((d): d is StudyDay => !!d && typeof (d as StudyDay).date === "string")
+    return parsed
+      .filter((d): d is StudyDay => !!d && typeof (d as StudyDay).date === "string")
+      /* Dữ liệu cũ có thể thiếu field mới → điền mặc định để không bị NaN khi cộng */
+      .map((d) => ({
+        ...d,
+        lessonsCompleted: Number((d as Partial<StudyDay>).lessonsCompleted ?? 0),
+      }))
   } catch {
     return []
   }
@@ -89,6 +96,7 @@ export type StudyCountersPatch = {
   phrasesLearned?: number
   grammarCompleted?: number
   exercisesCompleted?: number
+  lessonsCompleted?: number
   reviews?: number
   xp?: number
 }
@@ -101,6 +109,7 @@ export function addLocalStudyCounters(uid: string | null | undefined, patch: Stu
     phrasesLearned: Math.max(0, current.phrasesLearned + (patch.phrasesLearned ?? 0)),
     grammarCompleted: Math.max(0, current.grammarCompleted + (patch.grammarCompleted ?? 0)),
     exercisesCompleted: Math.max(0, current.exercisesCompleted + (patch.exercisesCompleted ?? 0)),
+    lessonsCompleted: Math.max(0, current.lessonsCompleted + (patch.lessonsCompleted ?? 0)),
     reviews: Math.max(0, current.reviews + (patch.reviews ?? 0)),
     xp: Math.max(0, current.xp + (patch.xp ?? 0)),
   })

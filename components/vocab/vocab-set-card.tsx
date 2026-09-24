@@ -1,4 +1,4 @@
-import { ArrowRight, BookMarked, Loader2, Trash2 } from "lucide-react"
+import { ArrowRight, BookMarked, CheckCircle2, Loader2, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 import { getSetIcon } from "@/lib/data/set-icons"
@@ -23,6 +23,8 @@ export function VocabSetCard({ set, learnedCount, onDelete, deleting = false }: 
   const learned = learnedCount ?? set.learned
   const total = set.total || set.words.length
   const percent = total === 0 ? 0 : Math.round((learned / total) * 100)
+  /** Học hết 100% số từ trong bộ → gắn tag "Hoàn thành" */
+  const completed = total > 0 && learned >= total
 
   return (
     <div className="relative">
@@ -34,16 +36,24 @@ export function VocabSetCard({ set, learnedCount, onDelete, deleting = false }: 
           <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${topic.iconClass} text-white shadow-sm`}>
             <TopicIcon className="h-5 w-5" />
           </span>
-          <div className="flex items-center gap-1.5">
-            {set.ownerId && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600">
-                <BookMarked className="h-3 w-3" />
-                Của tôi
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-1.5">
+              {set.ownerId && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600">
+                  <BookMarked className="h-3 w-3" />
+                  Của tôi
+                </span>
+              )}
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${levelClass[set.level]}`}>
+                {set.level}
+              </span>
+            </div>
+            {completed && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold text-green-700">
+                <CheckCircle2 className="h-3 w-3" />
+                Hoàn thành
               </span>
             )}
-            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${levelClass[set.level]}`}>
-              {set.level}
-            </span>
           </div>
         </div>
 

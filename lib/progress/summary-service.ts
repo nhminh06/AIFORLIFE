@@ -22,6 +22,7 @@ function isActiveDay(day: StudyDay): boolean {
     day.phrasesLearned > 0 ||
     day.grammarCompleted > 0 ||
     day.exercisesCompleted > 0 ||
+    day.lessonsCompleted > 0 ||
     day.reviews > 0
   )
 }

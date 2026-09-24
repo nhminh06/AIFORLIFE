@@ -14,6 +14,10 @@ export const xpRules = {
   grammarTopic: 40,
   /** mỗi câu trả lời đúng trong bài luyện tập */
   practiceCorrect: 10,
+  /** hoàn thành cả 1 bộ từ vựng (học hết 100% số từ) — tính như 1 bài học */
+  vocabSet: 20,
+  /** hoàn thành cả 1 bộ mẫu câu (học hết 100% số câu) — tính như 1 bài học */
+  phraseSet: 20,
   /** XP theo thời gian học: mỗi 10 phút được bấy nhiêu XP */
   timePerTenMinutes: 15,
   /** trần XP cộng theo thời gian trong 1 ngày */

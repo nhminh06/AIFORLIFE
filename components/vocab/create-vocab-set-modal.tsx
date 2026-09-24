@@ -122,6 +122,8 @@ export function CreateVocabSetModal({
   const [aiWords, setAiWords] = useState<VocabWord[]>([])
   /** trang hiện tại của danh sách từ AI gợi ý (mỗi trang AI_PREVIEW_PER_PAGE từ) */
   const [aiPage, setAiPage] = useState(1)
+  /** cảnh báo khi AI trả về ít hơn số lượng từ đã yêu cầu */
+  const [aiNotice, setAiNotice] = useState<string | null>(null)
 
   const nameRef = useRef<HTMLInputElement>(null)
   /** vùng danh sách từ AI — dùng để cuộn lên đầu khi đổi trang */
@@ -367,6 +369,7 @@ export function CreateVocabSetModal({
 
     setAiGenerating(true)
     setError(null)
+    setAiNotice(null)
     try {
       const generated = await aiGenerateVocabWords({
         topicId: topicField.topicId,
@@ -379,6 +382,12 @@ export function CreateVocabSetModal({
       setAiWords(generated)
       /* danh sách mới → xem từ trang đầu */
       setAiPage(1)
+      /* Nếu AI vẫn trả thiếu từ thì báo rõ để người dùng biết mà xử lý */
+      setAiNotice(
+        generated.length < aiCount
+          ? `AI tạo được ${generated.length}/${aiCount} từ phù hợp với yêu cầu. Bạn có thể bấm "Ra lại" để tạo danh sách mới hoặc thêm từ thủ công.`
+          : null
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không sinh được từ vựng bằng AI.")
     } finally {
@@ -921,6 +930,13 @@ export function CreateVocabSetModal({
                   <p className="flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 px-3.5 py-2.5 text-xs font-medium text-red-600">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     {error}
+                  </p>
+                )}
+
+                {aiNotice && (
+                  <p className="flex items-start gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-700">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {aiNotice}
                   </p>
                 )}
 

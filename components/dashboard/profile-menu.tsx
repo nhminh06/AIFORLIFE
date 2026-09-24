@@ -11,7 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { initials } from "@/lib/profile"
+import { initials, AVATAR_PRESETS } from "@/lib/profile"
 
 export function ProfileMenu() {
   const { user, userProfile, logout, openAuthModal } = useAuth()
@@ -40,6 +40,7 @@ export function ProfileMenu() {
   const email = user?.email || userProfile.email || "Chưa đăng nhập"
   const avatarText = initials(name)
   const photoURL = user?.photoURL || userProfile.photoURL
+  const activePreset = AVATAR_PRESETS.find((p) => p.id === userProfile.avatarPreset)
 
   const links = [
     { href: "/ca-nhan", label: "Trang cá nhân", desc: "Hồ sơ, mục tiêu & giao diện", icon: UserRound },
@@ -87,6 +88,8 @@ export function ProfileMenu() {
             className="h-full w-full object-cover"
             referrerPolicy="no-referrer"
           />
+        ) : activePreset ? (
+          <span className="text-base select-none">{activePreset.emoji}</span>
         ) : (
           avatarText
         )}
@@ -111,6 +114,8 @@ export function ProfileMenu() {
                   className="h-full w-full object-cover"
                   referrerPolicy="no-referrer"
                 />
+              ) : activePreset ? (
+                <span className="text-xl select-none">{activePreset.emoji}</span>
               ) : (
                 avatarText
               )}

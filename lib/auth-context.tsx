@@ -10,11 +10,25 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile as updateFirebaseProfile,
+  updatePassword,
+  sendEmailVerification,
+  deleteUser,
   onAuthStateChanged,
 } from "firebase/auth"
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore"
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
-import { type Profile, defaultProfile, saveProfile, loadProfile } from "@/lib/profile"
+import {
+  type Profile,
+  type StudySettings,
+  defaultProfile,
+  defaultSettings,
+  saveProfile,
+  loadProfile,
+  saveSettings,
+  loadSettings,
+  PROFILE_UPDATED_EVENT,
+  SETTINGS_UPDATED_EVENT,
+} from "@/lib/profile"
 
 export type UserProfileData = Profile & {
   uid?: string
@@ -27,6 +41,7 @@ type AuthModalTab = "login" | "register" | "forgot"
 type AuthContextType = {
   user: User | null
   userProfile: UserProfileData
+  studySettings: StudySettings
   loading: boolean
   isAuthModalOpen: boolean
   authModalTab: AuthModalTab
@@ -37,7 +52,13 @@ type AuthContextType = {
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  changePassword: (newPass: string) => Promise<void>
+  sendEmailVerificationLink: () => Promise<void>
+  deleteUserAccount: () => Promise<void>
   updateProfileData: (data: Partial<UserProfileData>) => Promise<void>
+  updateStudySettings: (settings: Partial<StudySettings>) => Promise<void>
+  exportUserData: () => string
+  importUserData: (jsonString: string) => Promise<{ success: boolean; message: string; count?: number }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -45,9 +66,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfileData>(defaultProfile)
+  const [studySettings, setStudySettings] = useState<StudySettings>(defaultSettings)
   const [loading, setLoading] = useState(true)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authModalTab, setAuthModalTab] = useState<AuthModalTab>("login")
+
+  // Nạp cài đặt ban đầu từ localStorage
+  useEffect(() => {
+    setStudySettings(loadSettings())
+    const handleSettingsUpdate = () => setStudySettings(loadSettings())
+    window.addEventListener(SETTINGS_UPDATED_EVENT, handleSettingsUpdate)
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, handleSettingsUpdate)
+  }, [])
 
   const openAuthModal = (tab: AuthModalTab = "login") => {
     setAuthModalTab(tab)
@@ -68,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const docSnap = await getDoc(userDocRef)
 
           if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfileData
+            const data = docSnap.data() as any
             const merged: UserProfileData = {
               ...defaultProfile,
               ...data,
@@ -79,6 +109,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             setUserProfile(merged)
             saveProfile(merged)
+
+            if (data.settings) {
+              const mergedSettings: StudySettings = { ...defaultSettings, ...data.settings }
+              setStudySettings(mergedSettings)
+              saveSettings(mergedSettings)
+            }
           } else {
             // Tạo hồ sơ mới trên Firestore cho tài khoản lần đầu đăng nhập
             const newProfile: UserProfileData = {
@@ -90,7 +126,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               joinedDate: new Intl.DateTimeFormat("vi-VN", { month: "2-digit", year: "numeric" }).format(new Date()),
               createdAt: serverTimestamp(),
             }
-            await setDoc(userDocRef, newProfile, { merge: true })
+            const currentLocalSettings = loadSettings()
+            await setDoc(userDocRef, { ...newProfile, settings: currentLocalSettings }, { merge: true })
             setUserProfile(newProfile)
             saveProfile(newProfile)
           }
@@ -110,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Khách chưa đăng nhập: Sử dụng profile cục bộ (localStorage)
         setUserProfile(loadProfile())
+        setStudySettings(loadSettings())
       }
       setLoading(false)
     })
@@ -145,11 +183,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth)
     setUser(null)
     setUserProfile(loadProfile())
+    setStudySettings(loadSettings())
   }
 
   // Quên mật khẩu / Gửi email đặt lại
   const resetPassword = async (email: string) => {
     await sendPasswordResetEmail(auth, email)
+  }
+
+  // Đổi mật khẩu tài khoản hiện tại
+  const changePassword = async (newPass: string) => {
+    if (!user) throw new Error("Bạn chưa đăng nhập!")
+    await updatePassword(user, newPass)
+  }
+
+  // Gửi link xác thực email
+  const sendEmailVerificationLink = async () => {
+    if (!user) throw new Error("Bạn chưa đăng nhập!")
+    await sendEmailVerification(user)
+  }
+
+  // Xóa tài khoản người dùng vĩnh viễn
+  const deleteUserAccount = async () => {
+    if (!user) throw new Error("Bạn chưa đăng nhập!")
+    const uid = user.uid
+    try {
+      await deleteDoc(doc(db, "users", uid))
+    } catch {
+      /* Bỏ qua lỗi Firestore nếu không có quyền */
+    }
+
+    // Xóa các dữ liệu cục bộ của user
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.startsWith("learnenglish") || key.startsWith("afl:"))) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k))
+    } catch {
+      /* bỏ qua */
+    }
+
+    await deleteUser(user)
+    setUser(null)
+    setUserProfile(defaultProfile)
+    setStudySettings(defaultSettings)
   }
 
   // Cập nhật thông tin hồ sơ
@@ -163,6 +244,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.name && data.name !== user.displayName) {
           await updateFirebaseProfile(user, { displayName: data.name })
         }
+        if (data.photoURL !== undefined && data.photoURL !== user.photoURL) {
+          await updateFirebaseProfile(user, { photoURL: data.photoURL })
+        }
         const userDocRef = doc(db, "users", user.uid)
         await updateDoc(userDocRef, {
           ...data,
@@ -174,11 +258,130 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Cập nhật mục tiêu và cài đặt học tập
+  const updateStudySettings = async (settings: Partial<StudySettings>) => {
+    const merged: StudySettings = { ...studySettings, ...settings }
+    setStudySettings(merged)
+    saveSettings(merged)
+
+    if (user) {
+      try {
+        const userDocRef = doc(db, "users", user.uid)
+        await setDoc(userDocRef, { settings: merged, updatedAt: serverTimestamp() }, { merge: true })
+      } catch (err) {
+        console.error("Lỗi khi đồng bộ cài đặt lên Firestore:", err)
+      }
+    }
+  }
+
+  // Xuất dữ liệu học tập ra chuỗi JSON
+  const exportUserData = (): string => {
+    const localData: Record<string, any> = {}
+    if (typeof window !== "undefined") {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.startsWith("learnenglish") || key.startsWith("afl:"))) {
+          try {
+            const raw = localStorage.getItem(key)
+            localData[key] = raw ? JSON.parse(raw) : raw
+          } catch {
+            localData[key] = localStorage.getItem(key)
+          }
+        }
+      }
+    }
+
+    const payload = {
+      app: "LearnEnglish AFL",
+      version: "2.0",
+      exportDate: new Date().toISOString(),
+      user: {
+        email: user?.email ?? userProfile.email,
+        name: userProfile.name,
+      },
+      profile: userProfile,
+      studySettings,
+      storage: localData,
+    }
+
+    return JSON.stringify(payload, null, 2)
+  }
+
+  // Khôi phục dữ liệu từ file sao lưu JSON
+  const importUserData = async (jsonString: string): Promise<{ success: boolean; message: string; count?: number }> => {
+    try {
+      const parsed = JSON.parse(jsonString)
+      let restoredCount = 0
+
+      // Hỗ trợ cả 2 định dạng: gói đầy đủ { storage: { ... } } hoặc map key-value phẳng
+      const dataMap = parsed.storage && typeof parsed.storage === "object" ? parsed.storage : parsed
+
+      if (typeof window !== "undefined") {
+        for (const [key, value] of Object.entries(dataMap)) {
+          if (typeof key === "string" && (key.startsWith("learnenglish") || key.startsWith("afl:"))) {
+            const stringVal = typeof value === "string" ? value : JSON.stringify(value)
+            localStorage.setItem(key, stringVal)
+            restoredCount++
+          }
+        }
+      }
+
+      // Khôi phục profile và settings nếu có
+      if (parsed.profile) {
+        const mergedProf = { ...userProfile, ...parsed.profile }
+        setUserProfile(mergedProf)
+        saveProfile(mergedProf)
+      }
+      if (parsed.studySettings) {
+        const mergedSet = { ...studySettings, ...parsed.studySettings }
+        setStudySettings(mergedSet)
+        saveSettings(mergedSet)
+      }
+
+      // Đồng bộ lên Firestore nếu đã đăng nhập
+      if (user) {
+        try {
+          const userDocRef = doc(db, "users", user.uid)
+          await setDoc(
+            userDocRef,
+            {
+              ...(parsed.profile ? parsed.profile : {}),
+              ...(parsed.studySettings ? { settings: parsed.studySettings } : {}),
+              restoredAt: serverTimestamp(),
+            },
+            { merge: true }
+          )
+        } catch (err) {
+          console.warn("Không thể đồng bộ toàn bộ lên Firestore:", err)
+        }
+      }
+
+      // Thông báo cho toàn bộ các trang giao diện cập nhật lại
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("storage"))
+        window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT))
+        window.dispatchEvent(new Event(SETTINGS_UPDATED_EVENT))
+      }
+
+      return {
+        success: true,
+        count: restoredCount,
+        message: `Đã khôi phục thành công ${restoredCount} mục dữ liệu học tập!`,
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Lỗi đọc file: ${err?.message || "Định dạng JSON không hợp lệ"}`,
+      }
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
         user,
         userProfile,
+        studySettings,
         loading,
         isAuthModalOpen,
         authModalTab,
@@ -189,7 +392,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithGoogle,
         logout,
         resetPassword,
+        changePassword,
+        sendEmailVerificationLink,
+        deleteUserAccount,
         updateProfileData,
+        updateStudySettings,
+        exportUserData,
+        importUserData,
       }}
     >
       {children}

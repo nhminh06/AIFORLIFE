@@ -1,4 +1,4 @@
-import { ArrowRight, MessageCircle, UserRound } from "lucide-react"
+import { ArrowRight, CheckCircle2, MessageCircle, UserRound } from "lucide-react"
 import Link from "next/link"
 
 import { getPhraseSituation, levelClass, type PhraseSet } from "@/lib/data/phrases"
@@ -22,6 +22,8 @@ export function PhraseSetCard({
   const total = set.items.length || set.total
   const learnedCount = realLearned ?? set.learned
   const percent = pct(learnedCount, total)
+  /** Học hết 100% số câu trong bộ → gắn tag "Hoàn thành" */
+  const completed = total > 0 && learnedCount >= total
   return (
     <Link
       href={`/mau-cau/${set.slug}`}
@@ -31,16 +33,24 @@ export function PhraseSetCard({
         <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${set.accent} text-white shadow-sm`}>
           <MessageCircle className="h-5 w-5" />
         </span>
-        <div className="flex items-center gap-1.5">
-          {mine && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase text-amber-700">
-              <UserRound className="h-3 w-3" />
-              Của tôi
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1.5">
+            {mine && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase text-amber-700">
+                <UserRound className="h-3 w-3" />
+                Của tôi
+              </span>
+            )}
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${levelClass[set.level]}`}>
+              {set.level}
+            </span>
+          </div>
+          {completed && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold text-green-700">
+              <CheckCircle2 className="h-3 w-3" />
+              Hoàn thành
             </span>
           )}
-          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${levelClass[set.level]}`}>
-            {set.level}
-          </span>
         </div>
       </div>
       <h3 className="mt-3 font-bold text-slate-900 group-hover:text-green-700">{set.name}</h3>

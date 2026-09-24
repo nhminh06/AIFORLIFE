@@ -10,12 +10,21 @@ import {
   type VocabWord,
 } from "@/lib/data/vocabulary"
 
-import { getOpenRouterApiKeys, openRouterChatJSON } from "./openrouter"
+import { getOpenRouterApiKeys, getOpenRouterModels, openRouterChatJSON, OpenRouterError } from "./openrouter"
 
-const VOCAB_MODELS = (process.env.VOCAB_OPENROUTER_MODELS || "openrouter/free")
-  .split(",")
-  .map((model) => model.trim())
-  .filter(Boolean)
+/**
+ * Model dùng cho tính năng từ vựng: ưu tiên `VOCAB_OPENROUTER_MODELS` nếu có, luôn kèm các
+ * model dự phòng của app để model free đang bận vẫn tự chuyển sang model khác thay vì lỗi.
+ */
+const VOCAB_MODELS = [
+  ...new Set([
+    ...(process.env.VOCAB_OPENROUTER_MODELS || "")
+      .split(",")
+      .map((model) => model.trim())
+      .filter(Boolean),
+    ...getOpenRouterModels(),
+  ]),
+]
 
 /* ------------------------------------------------------------------ */
 /*  Chuẩn hóa dữ liệu AI trả về                                        */
@@ -193,45 +202,155 @@ export type GenerateVocabInput = {
   notes?: string
 }
 
-/** Sinh danh sách từ vựng mới bằng AI */
+/** Số vòng gọi bù tối đa khi model trả về thiếu từ so với yêu cầu */
+const MAX_TOP_UP_ROUNDS = 4
+
+/** Tổng thời gian tối đa cho các vòng gọi bù (ms) — quá hạn thì trả về số từ đã có, không bắt chờ thêm */
+const TOP_UP_TIME_BUDGET_MS = 90_000
+
+/** Ghi log các batch lỗi để chẩn đoán vì sao thiếu từ (hết hạn mức, timeout, model bận…) */
+function logBatchFailures(results: PromiseSettledResult<unknown>[], label: string): void {
+  const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected")
+  if (failures.length === 0) return
+  const detail = failures
+    .map((failure) => (failure.reason instanceof Error ? failure.reason.message : String(failure.reason)))
+    .join(" | ")
+  console.warn(`[vocab-ai] ${label}: ${failures.length}/${results.length} batch lỗi → ${detail}`)
+}
+
+/** Chia `total` từ thành các phần gần bằng nhau để nhiều API key chạy song song */
+function splitCount(total: number, maxParts: number): number[] {
+  const parts = Math.max(1, Math.min(maxParts, total))
+  const base = Math.floor(total / parts)
+  const remainder = total % parts
+  return Array.from({ length: parts }, (_, index) => base + (index < remainder ? 1 : 0))
+}
+
+/** Gộp nhiều danh sách từ: bỏ trùng và loại từ thiếu "en"/"vi" (model đôi khi bỏ nghĩa) */
+function mergeWords(lists: VocabWord[][]): VocabWord[] {
+  return dedupeWords(lists.flat()).filter((w) => w.en && w.vi)
+}
+
+/** Gom kết quả nhiều lần gọi AI thành danh sách từ sạch: bỏ lượt lỗi, bỏ trùng, loại từ thiếu nghĩa */
+function collectWords(results: PromiseSettledResult<unknown>[]): VocabWord[] {
+  return mergeWords(
+    results.map((result) => (result.status === "fulfilled" ? sanitizeWords(result.value) : []))
+  )
+}
+
+/** Sinh danh sách từ vựng mới bằng AI, tự gọi bù nếu model trả thiếu so với `count` */
 export async function generateVocabWords(input: GenerateVocabInput): Promise<VocabWord[]> {
   const { topic, prompt, level, count, notes } = input
 
+  const startedAt = Date.now()
   const apiKeys = getOpenRouterApiKeys()
-  const batchCount = Math.max(1, Math.min(apiKeys.length, count))
-  const baseCount = Math.floor(count / batchCount)
-  const remainder = count % batchCount
-  const batches = Array.from({ length: batchCount }, (_, index) => baseCount + (index < remainder ? 1 : 0))
 
-  const results = await Promise.allSettled(
-    batches.map((batchSize, index) => {
-      const userPrompt = [
-        `Hãy tạo danh sách ${batchSize} từ/cụm từ tiếng Anh cho người Việt học tiếng Anh.`,
-        `- Chủ đề: ${topic}`,
-        `- Trình độ CEFR: ${level} (${vocabLevelLabels[level]}). Chỉ chọn những từ vựng phù hợp đúng trình độ này.`,
-        prompt?.trim() ? `- Yêu cầu riêng của người học: ${prompt.trim()}` : "",
-        notes?.trim() ? `- Ghi chú thêm: ${notes.trim()}` : "",
-        `Trả về đúng ${batchSize} phần tử trong mảng "words", không trùng nhau và chỉ dùng từ/cụm từ tiếng Anh. Tuyệt đối không dùng tiếng Trung hoặc ký tự Hán trong "en" hay "vi".`,
-      ]
-        .filter(Boolean)
-        .join("\n")
+  /** Prompt cho 1 lượt gọi: `existing` là các từ đã có để AI không lặp lại */
+  const buildUserPrompt = (batchSize: number, existing: string[]) =>
+    [
+      `Hãy tạo danh sách ${batchSize} từ/cụm từ tiếng Anh cho người Việt học tiếng Anh.`,
+      `- Chủ đề: ${topic}`,
+      `- Trình độ CEFR: ${level} (${vocabLevelLabels[level]}). Chỉ chọn những từ vựng phù hợp đúng trình độ này.`,
+      prompt?.trim() ? `- Yêu cầu riêng của người học: ${prompt.trim()}` : "",
+      notes?.trim() ? `- Ghi chú thêm: ${notes.trim()}` : "",
+      existing.length > 0
+        ? `- Các từ sau ĐÃ CÓ trong danh sách, tuyệt đối không lặp lại: ${existing.join(", ")}`
+        : "",
+      `Trả về đúng ${batchSize} phần tử trong mảng "words", không trùng nhau và chỉ dùng từ/cụm từ tiếng Anh. Tuyệt đối không dùng tiếng Trung hoặc ký tự Hán trong "en" hay "vi".`,
+    ]
+      .filter(Boolean)
+      .join("\n")
 
-      return openRouterChatJSON<unknown>(
-        [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        { temperature: 0.6, models: VOCAB_MODELS, reasoning: { enabled: false }, apiKey: apiKeys[index] }
-      )
-    })
+  const requestBatch = (
+    batchSize: number,
+    existing: string[],
+    keyIndex: number,
+    reasoning: { enabled: false } | null = { enabled: false }
+  ) =>
+    openRouterChatJSON<unknown>(
+      [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: buildUserPrompt(batchSize, existing) },
+      ],
+      {
+        temperature: 0.6,
+        models: VOCAB_MODELS,
+        reasoning,
+        apiKey: apiKeys[keyIndex],
+        /* Có nhiều key: mỗi key chỉ thử 1 lần rồi để hàm bọc đổi ngay sang key khác */
+        ...(apiKeys.length > 1 ? { maxAttempts: 1 } : {}),
+      }
+    )
+
+  /** Gọi 1 batch trên 1 key — provider bắt buộc bật reasoning thì thử lại ở chế độ để provider tự quyết */
+  const requestBatchOnKey = async (batchSize: number, existing: string[], keyIndex: number) => {
+    try {
+      return await requestBatch(batchSize, existing, keyIndex)
+    } catch (err) {
+      const message = err instanceof Error ? err.message.toLowerCase() : ""
+      if (!message.includes("reasoning")) throw err
+      console.warn("[vocab-ai] Provider yêu cầu bật reasoning → thử lại không tắt reasoning.")
+      return await requestBatch(batchSize, existing, keyIndex, null)
+    }
+  }
+
+  /** Thử 1 batch trên tối đa 3 key khác nhau — key hết hạn mức/quá tải thì đổi key, không bỏ cả batch */
+  const requestBatchWithFallback = async (batchSize: number, existing: string[], startKeyIndex: number) => {
+    let lastError: unknown = null
+    const attempts = Math.min(3, apiKeys.length)
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        return await requestBatchOnKey(batchSize, existing, (startKeyIndex + attempt) % apiKeys.length)
+      } catch (err) {
+        lastError = err
+        if (!(err instanceof OpenRouterError) || !err.retryable) break
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError))
+  }
+
+  /* Vòng 1: xin dư ~50% (tối đa +10 từ) vì model free hay trả thiếu, phần dư sẽ bị cắt khi đủ `count` */
+  const firstRoundTarget = Math.min(count + 10, Math.ceil(count * 1.5))
+  const firstResults = await Promise.allSettled(
+    splitCount(firstRoundTarget, apiKeys.length).map((batchSize, index) =>
+      requestBatchWithFallback(batchSize, [], index)
+    )
   )
+  logBatchFailures(firstResults, "Vòng 1")
+  let words = collectWords(firstResults)
+  console.log(`[vocab-ai] Vòng 1: ${words.length}/${count} từ (${apiKeys.length} key, model: ${VOCAB_MODELS[0]}).`)
 
-  /* Một số model trả nghĩa đúng nhưng bỏ IPA; không loại cả danh sách vì thiếu một trường phụ. */
-  const words = dedupeWords(
-    results.flatMap((result) => (result.status === "fulfilled" ? sanitizeWords(result.value) : []))
-  ).filter((w) => w.en && w.vi)
+  /* Model free thường trả thiếu từ so với yêu cầu → gọi bù thêm vài vòng, mỗi vòng chỉ xin
+     đúng số từ còn thiếu và liệt kê từ đã có để AI sinh từ mới, cho tới khi đủ `count`. */
+  for (let round = 1; round <= MAX_TOP_UP_ROUNDS && words.length < count; round++) {
+    /* Đã chờ quá lâu → dừng gọi bù để không bắt người dùng đợi thêm */
+    if (Date.now() - startedAt > TOP_UP_TIME_BUDGET_MS) {
+      console.warn(`[vocab-ai] Đã chờ ${Math.round((Date.now() - startedAt) / 1000)}s → dừng gọi bù.`)
+      break
+    }
+    const existing = words.map((w) => w.en)
+    const missing = count - words.length
+    const topUpResults = await Promise.allSettled(
+      splitCount(missing, apiKeys.length).map((batchSize, index) =>
+        /* đổi key mỗi vòng để tránh dồn vào key vừa lỗi hoặc chậm ở vòng trước */
+        requestBatchWithFallback(batchSize, existing, (index + round) % apiKeys.length)
+      )
+    )
+    logBatchFailures(topUpResults, `Vòng bù ${round}`)
+    const added = collectWords(topUpResults)
+    if (added.length === 0) {
+      console.warn(`[vocab-ai] Vòng bù ${round}: AI không trả thêm từ mới → dừng sớm.`)
+      break /* AI không trả thêm được từ mới → dừng sớm, khỏi chờ vô ích */
+    }
+    words = mergeWords([words, added])
+    console.log(`[vocab-ai] Vòng bù ${round}: +${added.length} từ → ${words.length}/${count}.`)
+  }
+
   if (words.length === 0) {
     throw new Error("AI chưa trả về từ vựng hợp lệ. Vui lòng thử lại.")
+  }
+  if (words.length < count) {
+    console.warn(`[vocab-ai] Chỉ tạo được ${words.length}/${count} từ sau ${Math.round((Date.now() - startedAt) / 1000)}s.`)
   }
   return words.slice(0, count)
 }

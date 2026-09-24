@@ -5,6 +5,9 @@ export type Profile = {
   level?: string
   joinedDate?: string
   avatarColor?: string
+  avatarPreset?: string
+  photoURL?: string | null
+  fontSize?: "normal" | "large" | "xlarge"
 }
 
 export type StudySettings = {
@@ -21,10 +24,31 @@ export type StudySettings = {
   soundEffects: boolean
 }
 
-const PROFILE_KEY = "learnenglish-profile"
-const SETTINGS_KEY = "learnenglish-settings"
+export const AVATAR_PRESETS = [
+  { id: "owl", emoji: "🦉", label: "Cú Thông Thái", bg: "bg-blue-500" },
+  { id: "fox", emoji: "🦊", label: "Cáo Nhanh Trí", bg: "bg-amber-500" },
+  { id: "cat", emoji: "🐱", label: "Mèo Chăm Chỉ", bg: "bg-purple-500" },
+  { id: "lion", emoji: "🦁", label: "Sư Tử Tự Tin", bg: "bg-orange-500" },
+  { id: "panda", emoji: "🐼", label: "Gấu Kiên Trì", bg: "bg-emerald-500" },
+  { id: "rocket", emoji: "🚀", label: "Tên Lửa Bứt Phá", bg: "bg-rose-500" },
+  { id: "star", emoji: "⭐", label: "Ngôi Sao Sáng", bg: "bg-yellow-500" },
+  { id: "book", emoji: "📚", label: "Mọt Sách Vui Vẻ", bg: "bg-indigo-500" },
+]
+
+export const AVATAR_GRADIENTS = [
+  { id: "from-blue-500 to-indigo-600", label: "Lam Tinh Hải" },
+  { id: "from-purple-500 to-pink-600", label: "Tím Thần Kỳ" },
+  { id: "from-emerald-500 to-teal-600", label: "Ngọc Lục Bảo" },
+  { id: "from-amber-500 to-orange-600", label: "Hoàng Hôn Cam" },
+  { id: "from-rose-500 to-red-600", label: "Hồng Nhiệt Huyết" },
+  { id: "from-cyan-500 to-blue-600", label: "Biển Xanh Rực Rỡ" },
+]
+
+export const PROFILE_KEY = "learnenglish-profile"
+export const SETTINGS_KEY = "learnenglish-settings"
 
 export const PROFILE_UPDATED_EVENT = "learnenglish-profile-updated"
+export const SETTINGS_UPDATED_EVENT = "learnenglish-settings-updated"
 
 export const defaultProfile: Profile = {
   name: "Ngọc Hân",
@@ -33,6 +57,7 @@ export const defaultProfile: Profile = {
   level: "Trung cấp (B1)",
   joinedDate: "Tháng 01/2026",
   avatarColor: "from-blue-500 to-indigo-600",
+  fontSize: "normal",
 }
 
 export const defaultSettings: StudySettings = {

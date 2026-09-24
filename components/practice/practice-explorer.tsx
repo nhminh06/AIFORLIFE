@@ -32,7 +32,7 @@ export function PracticeExplorer() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([loadDefaultExercises(), user ? loadMyExercises(user.uid) : Promise.resolve([])])
+    Promise.all([loadDefaultExercises(user?.uid), user ? loadMyExercises(user.uid) : Promise.resolve([])])
       .then(([defaults, mine]) => {
         const guestDefaults = user
           ? defaults

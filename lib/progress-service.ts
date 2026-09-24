@@ -139,7 +139,7 @@ export async function getLearningMetrics(uid: string | null | undefined): Promis
     getAllPhraseSets(),
     uid ? getMyPhraseSets(uid) : Promise.resolve([]),
     uid ? getMyGrammarSets(uid) : Promise.resolve([]),
-    loadDefaultExercises(),
+    loadDefaultExercises(uid),
     uid ? loadMyExercises(uid) : Promise.resolve([]),
     loadAllVocabProgress(uid),
     loadAllPhraseProgress(uid),
@@ -154,9 +154,11 @@ export async function getLearningMetrics(uid: string | null | undefined): Promis
   )
   const wordsLearned = vocabLearnedCounts.reduce((sum, count) => sum + count, 0)
   const vocabTotal = vocabSets.reduce((sum, set) => sum + set.total, 0)
-  const completedVocabSets = vocabSets.filter(
-    (set, i) => set.total > 0 && vocabLearnedCounts[i] >= set.total
-  ).length
+  const completedVocabSets = vocabSets.filter((set, i) => {
+    /* Số từ thật trong bộ là chuẩn — `total` tĩnh có thể lệch (bộ do user tạo/sửa) */
+    const total = set.words.length || set.total
+    return total > 0 && vocabLearnedCounts[i] >= total
+  }).length
 
   /* --- Mẫu câu --- */
   const phraseSets = [...myPhrases, ...systemPhrases]
@@ -165,9 +167,11 @@ export async function getLearningMetrics(uid: string | null | undefined): Promis
   )
   const phrasesLearned = phraseLearnedCounts.reduce((sum, count) => sum + count, 0)
   const phraseTotal = phraseSets.reduce((sum, set) => sum + set.total, 0)
-  const completedPhraseSets = phraseSets.filter(
-    (set, i) => set.total > 0 && phraseLearnedCounts[i] >= set.total
-  ).length
+  const completedPhraseSets = phraseSets.filter((set, i) => {
+    /* Số câu thật trong bộ là chuẩn — `total` tĩnh có thể lệch */
+    const total = set.items.length || set.total
+    return total > 0 && phraseLearnedCounts[i] >= total
+  }).length
 
   /* --- Ngữ pháp --- */
   const grammarSlugs = [...grammarTopics.map((t) => t.slug), ...myGrammar.map((s) => s.slug)]
@@ -178,11 +182,13 @@ export async function getLearningMetrics(uid: string | null | undefined): Promis
   const grammarLearned = grammarSlugs.filter((slug) => learnedGrammarSlugs.has(slug)).length
   const grammarTotal = grammarSlugs.length
 
-  /* --- Luyện tập: gộp kết quả local + cloud --- */
+  /* --- Luyện tập: khách dùng kết quả local, tài khoản đã đăng nhập chỉ dùng kết quả Firestore --- */
   const resultSources: Record<string, { score: number; total: number }> = {}
-  Object.entries(getLocalPracticeResults()).forEach(([id, r]) => {
-    resultSources[id] = { score: r.score, total: r.total }
-  })
+  if (!uid) {
+    Object.entries(getLocalPracticeResults()).forEach(([id, r]) => {
+      resultSources[id] = { score: r.score, total: r.total }
+    })
+  }
   Object.entries(cloudResults as Record<string, PracticeResultRecord>).forEach(([id, r]) => {
     const current = resultSources[id]
     const isBetter = !current || r.bestScore > current.score
@@ -268,7 +274,7 @@ export function buildWeeklyPoints(days: StudyDay[], weeks = 6): WeeklyPoint[] {
     if (weeksAgo < 0 || weeksAgo >= weeks) return
     const index = weeks - 1 - weeksAgo
     buckets[index].words += day.wordsLearned
-    buckets[index].lessons += day.exercisesCompleted + day.grammarCompleted
+    buckets[index].lessons += day.exercisesCompleted + day.grammarCompleted + (day.lessonsCompleted ?? 0)
   })
 
   return buckets

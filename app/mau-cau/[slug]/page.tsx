@@ -124,6 +124,9 @@ export default function MauCauDetailPage() {
       openAuthModal("login")
       return
     }
+    /* Bộ đang hoàn thành sẵn? → chỉ ghi nhận khi VỪA đạt 100% (tránh cộng bài học/XP trùng) */
+    const keyedItems = set.items.map((p) => p.en.trim().toLowerCase())
+    const wasComplete = keyedItems.length > 0 && keyedItems.every((k) => learnedKeys.has(k))
     const next = new Set(learnedKeys)
     if (on) next.add(phraseKey)
     else next.delete(phraseKey)
@@ -143,8 +146,7 @@ export default function MauCauDetailPage() {
 
     /* Ghi nhận lên sổ tiến độ học tập (bộ đếm ngày + XP + lịch sử hoạt động) */
     void logPhraseLearnedChange(user.uid, { slug, title: set.name, on })
-    const keyedItems = set.items.map((p) => p.en.trim().toLowerCase())
-    if (on && keyedItems.length > 0 && keyedItems.every((k) => next.has(k))) {
+    if (on && !wasComplete && keyedItems.length > 0 && keyedItems.every((k) => next.has(k))) {
       void logPhraseSetCompleted(user.uid, { slug, title: set.name })
     }
   }

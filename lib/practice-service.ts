@@ -1,6 +1,7 @@
 import { collection, deleteDoc, doc, getDoc, getDocs } from "firebase/firestore"
 
 import { db } from "@/lib/firebase"
+import { getAllPracticeResults } from "@/lib/progress/practice-results-service"
 import { exercises as localExercises, type Exercise, type PracticeCategory, type PracticeResult, type PracticeStatus, type PracticeTypeId, type Question } from "@/lib/data/practice"
 
 const LOCAL_RESULTS_KEY = "afl-practice-results"
@@ -10,7 +11,24 @@ function localResults(): Record<string, PracticeResult> {
   try { return JSON.parse(localStorage.getItem(LOCAL_RESULTS_KEY) || "{}") as Record<string, PracticeResult> } catch { return {} }
 }
 
-/** Kết quả bài luyện đã lưu ở localStorage (bản sao, không sửa trực tiếp). */
+/**
+ * Kết quả bài luyện theo TỪNG người học:
+ * - Khách (chưa đăng nhập): đọc từ localStorage của trình duyệt này.
+ * - Đã đăng nhập: đọc từ Firestore của đúng user — KHÔNG dùng kết quả local,
+ *   vì local là dữ liệu dùng chung của trình duyệt nên sẽ lẫn giữa các tài khoản
+ *   (tài khoản mới sẽ "thừa hưởng" bài 10/10 của người dùng trước → sai huy hiệu).
+ */
+async function resultsFor(uid?: string | null): Promise<Record<string, PracticeResult>> {
+  if (!uid) return localResults()
+  const cloud = await getAllPracticeResults(uid)
+  const out: Record<string, PracticeResult> = {}
+  for (const [id, record] of Object.entries(cloud)) {
+    out[id] = { score: record.bestScore, total: record.bestTotal }
+  }
+  return out
+}
+
+/** Kết quả bài luyện của khách đã lưu ở localStorage (bản sao, không sửa trực tiếp). */
 export function getLocalPracticeResults(): Record<string, PracticeResult> {
   return localResults()
 }
@@ -20,8 +38,8 @@ export function saveLocalPracticeResult(id: string, result: PracticeResult) {
   localStorage.setItem(LOCAL_RESULTS_KEY, JSON.stringify({ ...localResults(), [id]: result }))
 }
 
-function applyLocalResults(items: Exercise[]): Exercise[] {
-  const results = localResults()
+/** Gắn trạng thái "Hoàn thành" + điểm cao nhất theo kết quả thật của người đang học */
+function applyResults(items: Exercise[], results: Record<string, PracticeResult>): Exercise[] {
   return items.map((item) => {
     const result = results[item.id]
     return result ? { ...item, status: "Hoàn thành", bestScore: `${result.score}/${result.total}` } : item
@@ -59,7 +77,8 @@ function parseExercise(value: unknown): Exercise | null {
 }
 
 /** Lấy bài luyện mặc định từ Firebase, giữ dữ liệu local làm fallback khi chưa seed hoặc mạng lỗi. */
-export async function loadDefaultExercises(): Promise<Exercise[]> {
+export async function loadDefaultExercises(uid?: string | null): Promise<Exercise[]> {
+  const results = await resultsFor(uid)
   try {
     const snapshot = await getDocs(collection(db, "practiceExercises"))
     const remote = snapshot.docs
@@ -67,10 +86,10 @@ export async function loadDefaultExercises(): Promise<Exercise[]> {
       .filter((item): item is Exercise => item !== null)
       .sort((a, b) => a.name.localeCompare(b.name))
 
-    return applyLocalResults(remote.length > 0 ? remote : localExercises)
+    return applyResults(remote.length > 0 ? remote : localExercises, results)
   } catch (error) {
     console.warn("[practice-service] Không đọc được bài luyện Firebase, dùng dữ liệu mặc định local.", error)
-    return applyLocalResults(localExercises)
+    return applyResults(localExercises, results)
   }
 }
 
@@ -87,17 +106,20 @@ export async function loadMyExercises(uid: string): Promise<Exercise[]> {
   }
 }
 
-export async function loadDefaultExercise(id: string): Promise<Exercise | null> {
+export async function loadDefaultExercise(id: string, uid?: string | null): Promise<Exercise | null> {
+  const results = await resultsFor(uid)
   try {
     const snapshot = await getDoc(doc(db, "practiceExercises", id))
-    if (snapshot.exists()) return parseExercise({ id: snapshot.id, ...snapshot.data() })
+    if (snapshot.exists()) {
+      const parsed = parseExercise({ id: snapshot.id, ...snapshot.data() })
+      if (parsed) return applyResults([parsed], results)[0]
+    }
   } catch (error) {
     console.warn("[practice-service] Không đọc được bài luyện Firebase, dùng dữ liệu local.", error)
   }
   const exercise = localExercises.find((item) => item.id === id) ?? null
   if (!exercise) return null
-  const result = localResults()[id]
-  return result ? { ...exercise, status: "Hoàn thành", bestScore: `${result.score}/${result.total}` } : exercise
+  return applyResults([exercise], results)[0]
 }
 
 export async function loadMyExercise(uid: string, id: string): Promise<Exercise | null> {

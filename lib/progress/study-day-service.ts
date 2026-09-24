@@ -65,6 +65,7 @@ export function emptyStudyDay(date: string): StudyDay {
     phrasesLearned: 0,
     grammarCompleted: 0,
     exercisesCompleted: 0,
+    lessonsCompleted: 0,
     reviews: 0,
     xp: 0,
   }
@@ -82,6 +83,7 @@ function docToStudyDay(date: string, data: Record<string, any>): StudyDay {
     phrasesLearned: Number(data.phrasesLearned ?? 0),
     grammarCompleted: Number(data.grammarCompleted ?? 0),
     exercisesCompleted: Number(data.exercisesCompleted ?? 0),
+    lessonsCompleted: Number(data.lessonsCompleted ?? 0),
     reviews: Number(data.reviews ?? 0),
     xp: Number(data.xp ?? 0),
     xpBreakdown: data.xpBreakdown ?? undefined,
@@ -153,6 +155,7 @@ const COUNTER_KEYS = [
   "phrasesLearned",
   "grammarCompleted",
   "exercisesCompleted",
+  "lessonsCompleted",
   "reviews",
 ] as const
 

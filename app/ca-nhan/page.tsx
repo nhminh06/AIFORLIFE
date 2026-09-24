@@ -18,7 +18,10 @@ import {
   Zap,
 } from "lucide-react"
 
-import { initialNotifications, getReadIds } from "@/lib/notifications"
+import { useAuth } from "@/lib/auth-context"
+import { getStatsSummary, type StatsSummary } from "@/lib/progress-service"
+import { getEarnedBadges } from "@/lib/progress/badge-service"
+import { useNotifications } from "@/lib/progress/notifications.hooks"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
@@ -29,37 +32,6 @@ import { AppearanceCard } from "@/components/profile/appearance-card"
 import { BadgesShowcaseCard } from "@/components/profile/badges-showcase-card"
 import { AccountSecurityCard } from "@/components/profile/account-security-card"
 import { NotificationItem } from "@/components/profile/notification-item"
-
-const QUICK_STATS = [
-  {
-    label: "Chuỗi học liên tiếp",
-    value: "12 ngày",
-    icon: Flame,
-    color: "bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400",
-    detail: "Kỷ lục cá nhân: 15 ngày",
-  },
-  {
-    label: "Từ vựng đã thuộc",
-    value: "1,240 từ",
-    icon: BookOpenText,
-    color: "bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400",
-    detail: "Mục tiêu tuần: +50 từ",
-  },
-  {
-    label: "Tổng điểm tích lũy",
-    value: "4,850 XP",
-    icon: Zap,
-    color: "bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400",
-    detail: "Hạng 4 trên bảng tuần",
-  },
-  {
-    label: "Huy hiệu đạt được",
-    value: "6 / 8",
-    icon: Award,
-    color: "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400",
-    detail: "Còn 2 huy hiệu nữa",
-  },
-]
 
 type TabKey = "all" | "profile" | "settings" | "appearance" | "badges" | "notifications"
 
@@ -73,22 +45,72 @@ const TABS: { id: TabKey; label: string; icon: typeof LayoutDashboard }[] = [
 ]
 
 export default function CaNhanPage() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<TabKey>("all")
-  const [readIds, setReadIds] = useState<string[]>([])
+  const [stats, setStats] = useState<StatsSummary | null>(null)
+  const [earnedBadgeCount, setEarnedBadgeCount] = useState<number>(0)
+
+  // Hệ thống thông báo thời gian thực
+  const { notifications, unreadCount, markAsRead } = useNotifications({ limitCount: 6 })
 
   useEffect(() => {
-    const load = () => setReadIds(getReadIds())
-    load()
-    window.addEventListener("storage", load)
-    window.addEventListener("learnenglish-notif-changed" as any, load)
-    return () => {
-      window.removeEventListener("storage", load)
-      window.removeEventListener("learnenglish-notif-changed" as any, load)
+    let isMounted = true
+    const loadStats = async () => {
+      try {
+        const [s, earned] = await Promise.all([
+          getStatsSummary(user?.uid),
+          getEarnedBadges(user?.uid),
+        ])
+        if (isMounted) {
+          setStats(s)
+          setEarnedBadgeCount(Object.keys(earned).length)
+        }
+      } catch {
+        /* fallback */
+      }
     }
-  }, [])
+    loadStats()
+    window.addEventListener("storage", loadStats)
+    window.addEventListener("learnenglish-progress-updated" as any, loadStats)
+    return () => {
+      isMounted = false
+      window.removeEventListener("storage", loadStats)
+      window.removeEventListener("learnenglish-progress-updated" as any, loadStats)
+    }
+  }, [user?.uid])
 
-  const unreadCount = initialNotifications.filter((n) => !readIds.includes(n.id)).length
-  const recentNotifs = initialNotifications.slice(0, 3)
+  const quickStats = [
+    {
+      label: "Chuỗi học liên tiếp",
+      value: `${stats ? stats.currentStreak : 0} ngày`,
+      icon: Flame,
+      color: "bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400",
+      detail: stats && stats.currentStreak > 0 ? "Tiếp tục duy trì hôm nay" : "Bắt đầu bài học để tạo chuỗi",
+    },
+    {
+      label: "Từ vựng đã thuộc",
+      value: `${stats ? stats.wordsLearned : 0} từ`,
+      icon: BookOpenText,
+      color: "bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400",
+      detail: "Từ vựng đã thành thạo",
+    },
+    {
+      label: "Tổng điểm tích lũy",
+      value: `${stats ? stats.totalXp.toLocaleString() : 0} XP`,
+      icon: Zap,
+      color: "bg-purple-100 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400",
+      detail: `${stats ? stats.completedLessons : 0} bài học hoàn thành`,
+    },
+    {
+      label: "Huy hiệu đạt được",
+      value: `${earnedBadgeCount} / 8`,
+      icon: Award,
+      color: "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400",
+      detail: earnedBadgeCount === 8 ? "Đã mở khóa toàn bộ!" : `Còn ${8 - earnedBadgeCount} danh hiệu nữa`,
+    },
+  ]
+
+  const recentNotifs = notifications.slice(0, 3)
 
   return (
     <SiteShell>
@@ -145,7 +167,7 @@ export default function CaNhanPage() {
         {/* Quick Stats Grid */}
         {activeTab === "all" && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {QUICK_STATS.map((s) => {
+            {quickStats.map((s) => {
               const Icon = s.icon
               return (
                 <div
@@ -227,19 +249,26 @@ export default function CaNhanPage() {
                 href="/ca-nhan/thong-bao"
                 className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
               >
-                Xem tất cả ({initialNotifications.length})
+                Xem tất cả ({notifications.length})
                 <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
             <div className="mt-4 space-y-2">
-              {recentNotifs.map((n) => (
-                <NotificationItem
-                  key={n.id}
-                  notification={n}
-                  isRead={readIds.includes(n.id)}
-                />
-              ))}
+              {recentNotifs.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  Chưa có thông báo nào. Bắt đầu học bài và duy trì Streak để mở khóa thêm thành tích!
+                </div>
+              ) : (
+                recentNotifs.map((n) => (
+                  <NotificationItem
+                    key={n.id}
+                    notification={n}
+                    isRead={n.read}
+                    onClick={() => markAsRead(n.id)}
+                  />
+                ))
+              )}
             </div>
           </section>
         )}

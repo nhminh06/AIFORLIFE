@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { BookOpen, ChevronDown, Clock, RotateCcw, Timer } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { defaultSettings } from "@/lib/profile"
 
 /** Phát sự kiện khi học xong 1 từ — gọi từ bất kỳ component nào */
 export function emitWordLearned() {
@@ -18,7 +19,12 @@ export function emitWordLearned() {
 
 const DAILY_WIDGET_KEY = "learnsphere-daily-widget"
 
+function dailyWidgetKey(uid?: string | null): string {
+  return uid ? `${DAILY_WIDGET_KEY}:${uid}` : DAILY_WIDGET_KEY
+}
+
 type DailyData = {
+  ownerUid: string | null
   date: string
   secondsLeft: number
   totalSeconds: number
@@ -30,30 +36,35 @@ function todayStr() {
   return new Date().toLocaleDateString("sv-SE") // "YYYY-MM-DD"
 }
 
-function freshData(totalSec: number, wordGoal: number): DailyData {
-  return { date: todayStr(), secondsLeft: totalSec, totalSeconds: totalSec, wordGoal, wordsLearned: 0 }
+function freshData(totalSec: number, wordGoal: number, ownerUid: string | null): DailyData {
+  return { ownerUid, date: todayStr(), secondsLeft: totalSec, totalSeconds: totalSec, wordGoal, wordsLearned: 0 }
 }
 
-function loadDaily(totalSec: number, wordGoal: number): DailyData {
-  if (typeof window === "undefined") return freshData(totalSec, wordGoal)
+function loadDaily(totalSec: number, wordGoal: number, uid: string | null): DailyData {
+  if (typeof window === "undefined") return freshData(totalSec, wordGoal, uid)
   try {
-    const raw = localStorage.getItem(DAILY_WIDGET_KEY)
+    const raw = localStorage.getItem(dailyWidgetKey(uid))
     if (!raw) throw new Error("empty")
     const parsed: DailyData = JSON.parse(raw)
-    // Reset nếu sang ngày mới hoặc settings thay đổi
+    // Reset nếu sang ngày mới, đổi tài khoản hoặc settings thay đổi.
     if (
+      parsed.ownerUid !== uid ||
       parsed.date !== todayStr() ||
       parsed.totalSeconds !== totalSec ||
-      parsed.wordGoal !== wordGoal
+      parsed.wordGoal !== wordGoal ||
+      !Number.isFinite(parsed.secondsLeft) ||
+      !Number.isFinite(parsed.wordsLearned) ||
+      parsed.secondsLeft < 0 ||
+      parsed.wordsLearned < 0
     ) throw new Error("stale")
-    return parsed
+    return { ...parsed, secondsLeft: Math.min(parsed.secondsLeft, totalSec) }
   } catch {
-    return freshData(totalSec, wordGoal)
+    return freshData(totalSec, wordGoal, uid)
   }
 }
 
-function saveDaily(data: DailyData) {
-  try { localStorage.setItem(DAILY_WIDGET_KEY, JSON.stringify(data)) } catch { /* bỏ qua */ }
+function saveDaily(data: DailyData, uid?: string | null) {
+  try { localStorage.setItem(dailyWidgetKey(uid), JSON.stringify(data)) } catch { /* bỏ qua */ }
 }
 
 
@@ -78,24 +89,33 @@ function fmt(sec: number) {
 
 export function DailyStudyWidget() {
   const pathname = usePathname()
-  const { studySettings } = useAuth()
+  const { user, studySettings } = useAuth()
 
-  const totalSeconds = (studySettings.dailyMinutes || 20) * 60
-  const wordGoal = studySettings.dailyGoal || 10
+  const dailyMinutes = Number.isFinite(studySettings.dailyMinutes)
+    ? studySettings.dailyMinutes
+    : defaultSettings.dailyMinutes
+  const dailyGoal = Number.isFinite(studySettings.dailyGoal)
+    ? studySettings.dailyGoal
+    : defaultSettings.dailyGoal
+  const totalSeconds = dailyMinutes * 60
+  const wordGoal = dailyGoal
+  const uid = user?.uid ?? null
 
-  const [data, setData] = useState<DailyData>(() => loadDaily(totalSeconds, wordGoal))
+  const [data, setData] = useState<DailyData>(() => loadDaily(totalSeconds, wordGoal, uid))
   const [running, setRunning] = useState(false)
   const [collapsed, setCollapsed] = useState(true) // mặc định thu gọn thành FAB
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Sync khi settings thay đổi
+  // Sync khi settings hoặc tài khoản thay đổi
   useEffect(() => {
-    setData(loadDaily(totalSeconds, wordGoal))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalSeconds, wordGoal])
+    setRunning(false)
+    setData(loadDaily(totalSeconds, wordGoal, uid))
+  }, [totalSeconds, wordGoal, uid])
 
-  // Lưu mỗi khi data thay đổi
-  useEffect(() => { saveDaily(data) }, [data])
+  // Lưu mỗi khi data thay đổi; không ghi dữ liệu cũ sang key của tài khoản mới.
+  useEffect(() => {
+    if (data.ownerUid === uid) saveDaily(data, uid)
+  }, [data, uid])
 
   // Đồng hồ đếm ngược
   useEffect(() => {
@@ -145,7 +165,7 @@ export function DailyStudyWidget() {
 
   function handleReset() {
     setRunning(false)
-    setData(freshData(totalSeconds, wordGoal))
+    setData(freshData(totalSeconds, wordGoal, uid))
   }
 
   /* ──── FAB (thu gọn) ──── */
@@ -333,7 +353,7 @@ export function DailyStudyWidget() {
 
         {/* Goal info */}
         <p className="text-center text-[9px] text-slate-400 dark:text-slate-600">
-          Mục tiêu: {studySettings.dailyMinutes || 20} phút · {wordGoal} từ / ngày
+          Mục tiêu: {dailyMinutes} phút · {wordGoal} từ / ngày
         </p>
       </div>
     </div>

@@ -99,14 +99,69 @@ export function saveProfile(p: Profile) {
   }
 }
 
-export function loadSettings(): StudySettings {
-  return readJson(SETTINGS_KEY, defaultSettings)
+function storageKey(uid?: string | null): string {
+  return uid ? `${SETTINGS_KEY}:${uid}` : SETTINGS_KEY
 }
 
-export function saveSettings(s: StudySettings) {
-  writeJson(SETTINGS_KEY, s)
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Chuẩn hóa settings từ localStorage hoặc Firestore.
+ * Firestore có thể chứa dữ liệu cũ/một phần nên không được để giá trị
+ * sai ghi đè hoàn toàn cấu hình hợp lệ.
+ *
+ * LƯU Ý: nguồn truyền sau sẽ ghi đè nguồn truyền trước nếu giá trị hợp lệ.
+ * Vì vậy thứ tự sources phải là: [ưu tiên thấp nhất, ..., ưu tiên cao nhất].
+ * Không được truyền `defaultSettings` làm nguồn cuối cùng nếu muốn giữ
+ * giá trị người dùng đã tùy chỉnh — vì default luôn hợp lệ (>0) nên sẽ
+ * luôn thắng và ghi đè giá trị thật.
+ */
+export function mergeStudySettings(
+  ...sources: Array<Partial<StudySettings> | null | undefined>
+): StudySettings {
+  const merged: StudySettings = { ...defaultSettings }
+
+  for (const source of sources) {
+    if (!isRecord(source)) continue
+
+    if (
+      typeof source.dailyGoal === "number" &&
+      Number.isFinite(source.dailyGoal) &&
+      source.dailyGoal > 0
+    ) {
+      merged.dailyGoal = source.dailyGoal
+    }
+    if (
+      typeof source.dailyMinutes === "number" &&
+      Number.isFinite(source.dailyMinutes) &&
+      source.dailyMinutes > 0
+    ) {
+      merged.dailyMinutes = source.dailyMinutes
+    }
+    if (typeof source.reminder === "boolean") merged.reminder = source.reminder
+    if (typeof source.reminderTime === "string") merged.reminderTime = source.reminderTime
+    if (typeof source.autoplay === "boolean") merged.autoplay = source.autoplay
+    if (typeof source.soundEffects === "boolean") merged.soundEffects = source.soundEffects
+  }
+
+  return merged
+}
+
+export function loadSettings(uid?: string | null): StudySettings {
+  const fallback = uid ? defaultSettings : readJson(SETTINGS_KEY, defaultSettings)
+  // FIX: readJson(...) đã tự merge với `fallback` cho các trường còn thiếu rồi.
+  // Trước đây code còn truyền thêm `fallback` làm nguồn thứ 2 khiến
+  // defaultSettings (20 phút/10 từ) luôn ghi đè lại giá trị người dùng vừa lưu.
+  return mergeStudySettings(readJson(storageKey(uid), fallback))
+}
+
+export function saveSettings(s: StudySettings, uid?: string | null) {
+  const normalized = mergeStudySettings(s)
+  writeJson(storageKey(uid), normalized)
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("learnenglish-settings-updated"))
+    window.dispatchEvent(new Event(SETTINGS_UPDATED_EVENT))
   }
 }
 
@@ -117,4 +172,3 @@ export function initials(name: string) {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
-

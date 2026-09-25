@@ -15,7 +15,7 @@ import {
   deleteUser,
   onAuthStateChanged,
 } from "firebase/auth"
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
+import { doc, setDoc, updateDoc, serverTimestamp, deleteDoc, onSnapshot } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase"
 import {
   type Profile,
@@ -26,6 +26,7 @@ import {
   loadProfile,
   saveSettings,
   loadSettings,
+  mergeStudySettings,
   PROFILE_UPDATED_EVENT,
   SETTINGS_UPDATED_EVENT,
 } from "@/lib/profile"
@@ -35,6 +36,11 @@ export type UserProfileData = Profile & {
   photoURL?: string | null
   createdAt?: any
 }
+
+type FirestoreUserData = Partial<UserProfileData> &
+  Partial<StudySettings> & {
+    settings?: unknown
+  }
 
 type AuthModalTab = "login" | "register" | "forgot"
 
@@ -71,13 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authModalTab, setAuthModalTab] = useState<AuthModalTab>("login")
 
-  // Nạp cài đặt ban đầu từ localStorage
+  // Đồng bộ cài đặt ban đầu từ localStorage theo tài khoản đang đăng nhập.
   useEffect(() => {
-    setStudySettings(loadSettings())
-    const handleSettingsUpdate = () => setStudySettings(loadSettings())
+    const uid = user?.uid ?? null
+    setStudySettings(loadSettings(uid))
+    const handleSettingsUpdate = () => setStudySettings(loadSettings(uid))
     window.addEventListener(SETTINGS_UPDATED_EVENT, handleSettingsUpdate)
     return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, handleSettingsUpdate)
-  }, [])
+  }, [user?.uid])
 
   const openAuthModal = (tab: AuthModalTab = "login") => {
     setAuthModalTab(tab)
@@ -88,35 +95,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthModalOpen(false)
   }
 
-  // Lắng nghe thay đổi trạng thái đăng nhập Firebase
+  // Lắng nghe thay đổi trạng thái đăng nhập Firebase và dữ liệu user trong Firestore.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let unsubscribeUserDoc: (() => void) | null = null
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser)
+      unsubscribeUserDoc?.()
+      unsubscribeUserDoc = null
+
       if (currentUser) {
-        try {
-          const userDocRef = doc(db, "users", currentUser.uid)
-          const docSnap = await getDoc(userDocRef)
-
-          if (docSnap.exists()) {
-            const data = docSnap.data() as any
-            const merged: UserProfileData = {
-              ...defaultProfile,
-              ...data,
-              name: data.name || currentUser.displayName || defaultProfile.name,
-              email: currentUser.email || data.email || defaultProfile.email,
-              photoURL: currentUser.photoURL || data.photoURL || null,
-              uid: currentUser.uid,
-            }
-            setUserProfile(merged)
-            saveProfile(merged)
-
-            if (data.settings) {
-              const mergedSettings: StudySettings = { ...defaultSettings, ...data.settings }
-              setStudySettings(mergedSettings)
-              saveSettings(mergedSettings)
-            }
-          } else {
-            // Tạo hồ sơ mới trên Firestore cho tài khoản lần đầu đăng nhập
+        const userDocRef = doc(db, "users", currentUser.uid)
+        const applyUserDocument = (data: FirestoreUserData, exists: boolean) => {
+          if (!exists) {
             const newProfile: UserProfileData = {
               ...defaultProfile,
               name: currentUser.displayName || currentUser.email?.split("@")[0] || defaultProfile.name,
@@ -126,33 +117,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               joinedDate: new Intl.DateTimeFormat("vi-VN", { month: "2-digit", year: "numeric" }).format(new Date()),
               createdAt: serverTimestamp(),
             }
-            const currentLocalSettings = loadSettings()
-            await setDoc(userDocRef, { ...newProfile, settings: currentLocalSettings }, { merge: true })
-            setUserProfile(newProfile)
-            saveProfile(newProfile)
+            const currentLocalSettings = loadSettings(currentUser.uid)
+            void setDoc(
+              userDocRef,
+              {
+                ...newProfile,
+                settings: currentLocalSettings,
+                dailyGoal: currentLocalSettings.dailyGoal,
+                dailyMinutes: currentLocalSettings.dailyMinutes,
+              },
+              { merge: true },
+            )
+              .then(() => {
+                setUserProfile(newProfile)
+                saveProfile(newProfile)
+                setStudySettings(currentLocalSettings)
+                saveSettings(currentLocalSettings, currentUser.uid)
+              })
+              .catch((err) => {
+                console.error("Lỗi khi tạo hồ sơ người dùng trên Firestore:", err)
+                setLoading(false)
+              })
+            return
           }
-        } catch (err) {
-          console.error("Lỗi khi tải hồ sơ người dùng từ Firestore:", err)
-          // Fallback sang thông tin từ Firebase User Auth
-          const fallback: UserProfileData = {
-            ...loadProfile(),
-            name: currentUser.displayName || currentUser.email?.split("@")[0] || defaultProfile.name,
-            email: currentUser.email || defaultProfile.email,
-            photoURL: currentUser.photoURL || null,
+
+          const merged: UserProfileData = {
+            ...defaultProfile,
+            ...data,
+            name: data.name || currentUser.displayName || defaultProfile.name,
+            email: currentUser.email || data.email || defaultProfile.email,
+            photoURL: currentUser.photoURL || data.photoURL || null,
             uid: currentUser.uid,
           }
-          setUserProfile(fallback)
-          saveProfile(fallback)
+          // Hỗ trợ cấu trúc Firestore mới lẫn dữ liệu cũ; trường ở cấp user được ưu tiên.
+          const mergedSettings = mergeStudySettings(
+            loadSettings(currentUser.uid),
+            data.settings as Partial<StudySettings> | undefined,
+            data,
+          )
+          setUserProfile(merged)
+          saveProfile(merged)
+          setStudySettings(mergedSettings)
+          saveSettings(mergedSettings, currentUser.uid)
+          setLoading(false)
         }
+
+        unsubscribeUserDoc = onSnapshot(
+          userDocRef,
+          (docSnap) => applyUserDocument(docSnap.data() as FirestoreUserData, docSnap.exists()),
+          (err) => {
+            console.error("Lỗi khi lắng nghe hồ sơ người dùng từ Firestore:", err)
+            const fallback: UserProfileData = {
+              ...loadProfile(),
+              name: currentUser.displayName || currentUser.email?.split("@")[0] || defaultProfile.name,
+              email: currentUser.email || defaultProfile.email,
+              photoURL: currentUser.photoURL || null,
+              uid: currentUser.uid,
+            }
+            setUserProfile(fallback)
+            saveProfile(fallback)
+            setStudySettings(loadSettings(currentUser.uid))
+            setLoading(false)
+          },
+        )
       } else {
-        // Khách chưa đăng nhập: Sử dụng profile cục bộ (localStorage)
+        // Khách chưa đăng nhập: sử dụng cấu hình local của guest.
         setUserProfile(loadProfile())
         setStudySettings(loadSettings())
+        setLoading(false)
       }
-      setLoading(false)
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribeUserDoc?.()
+      unsubscribe()
+    }
   }, [])
 
   // Đăng nhập bằng Email & Password
@@ -260,14 +299,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Cập nhật mục tiêu và cài đặt học tập
   const updateStudySettings = async (settings: Partial<StudySettings>) => {
-    const merged: StudySettings = { ...studySettings, ...settings }
+    const merged = mergeStudySettings(studySettings, settings)
     setStudySettings(merged)
-    saveSettings(merged)
+    saveSettings(merged, user?.uid)
 
     if (user) {
       try {
         const userDocRef = doc(db, "users", user.uid)
-        await setDoc(userDocRef, { settings: merged, updatedAt: serverTimestamp() }, { merge: true })
+        await setDoc(
+          userDocRef,
+          {
+            settings: merged,
+            dailyGoal: merged.dailyGoal,
+            dailyMinutes: merged.dailyMinutes,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        )
       } catch (err) {
         console.error("Lỗi khi đồng bộ cài đặt lên Firestore:", err)
       }
@@ -333,9 +381,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         saveProfile(mergedProf)
       }
       if (parsed.studySettings) {
-        const mergedSet = { ...studySettings, ...parsed.studySettings }
+        const mergedSet = mergeStudySettings(studySettings, parsed.studySettings)
         setStudySettings(mergedSet)
-        saveSettings(mergedSet)
+        saveSettings(mergedSet, user?.uid)
       }
 
       // Đồng bộ lên Firestore nếu đã đăng nhập
@@ -346,7 +394,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userDocRef,
             {
               ...(parsed.profile ? parsed.profile : {}),
-              ...(parsed.studySettings ? { settings: parsed.studySettings } : {}),
+              ...(parsed.studySettings
+                ? {
+                    settings: parsed.studySettings,
+                    dailyGoal: parsed.studySettings.dailyGoal,
+                    dailyMinutes: parsed.studySettings.dailyMinutes,
+                  }
+                : {}),
               restoredAt: serverTimestamp(),
             },
             { merge: true }

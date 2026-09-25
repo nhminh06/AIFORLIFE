@@ -136,12 +136,12 @@ export function StudySettingsCard() {
               Thời gian luyện tập mong muốn
             </label>
             <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-bold text-purple-600 dark:bg-purple-950/50 dark:text-purple-400">
-              {draft.dailyMinutes || 20} phút / ngày
+              {draft.dailyMinutes} phút / ngày
             </span>
           </div>
           <div className="mt-2.5 flex flex-wrap gap-2">
             {MINUTE_GOALS.map((m) => {
-              const active = (draft.dailyMinutes || 20) === m
+              const active = draft.dailyMinutes === m
               return (
                 <button
                   key={m}

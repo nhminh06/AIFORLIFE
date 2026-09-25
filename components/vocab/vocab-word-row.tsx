@@ -6,6 +6,7 @@ import { Check, Heart, Volume2 } from "lucide-react"
 import type { VocabWord } from "@/lib/data/vocabulary"
 import { speak } from "@/lib/speak"
 import { cn } from "@/lib/utils"
+import { emitWordLearned } from "@/components/dashboard/daily-study-widget"
 
 const typeClass: Record<VocabWord["type"], string> = {
   n: "bg-blue-100 text-blue-700",
@@ -44,6 +45,7 @@ export function VocabWordRow({
 
   const toggleLearned = () => {
     const next = !learned
+    if (next) emitWordLearned() // chỉ cộng khi đánh dấu thuộc, không trừ khi bỏ
     if (onLearnedChange) onLearnedChange(next)
     else setLearnedLocal(next)
   }

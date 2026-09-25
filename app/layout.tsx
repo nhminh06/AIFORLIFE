@@ -5,6 +5,7 @@ import './globals.css'
 import { ThemeProvider, themeInitScript } from '@/lib/theme'
 import { AuthProvider } from '@/lib/auth-context'
 import { AuthModal } from '@/components/auth/auth-modal'
+import { DailyStudyWidget } from '@/components/dashboard/daily-study-widget'
 
 const inter = Inter({
   subsets: ['latin', 'vietnamese'],
@@ -55,6 +56,7 @@ export default function RootLayout({
             {children}
           </ThemeProvider>
           <AuthModal />
+          <DailyStudyWidget />
         </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

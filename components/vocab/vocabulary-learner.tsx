@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { Fragment, useEffect, useRef, useState } from "react"
 import {
@@ -19,6 +19,7 @@ import type { VocabWord } from "@/lib/data/vocabulary"
 import { speak } from "@/lib/speak"
 import { getSavedVocabExample, saveVocabExample } from "@/lib/vocab-examples"
 import { cn } from "@/lib/utils"
+import { emitWordLearned } from "@/components/dashboard/daily-study-widget"
 
 export type LearnerMode = "learn" | "review"
 
@@ -254,6 +255,7 @@ export function VocabularyLearner({
 
   const handleDone = () => {
     if (!isCorrect) return
+    emitWordLearned()
     onLearned()
     setPhase("done")
   }

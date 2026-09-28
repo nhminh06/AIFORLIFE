@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
-import { aiFillVocabWords, aiGenerateVocabWords } from "@/lib/ai-vocab"
+import { aiFillVocabWords, aiGenerateVocabWords, aiGenerateVocabWordsStream } from "@/lib/ai-vocab"
 import {
   customTopicColorKeys,
   customTopicColors,
@@ -119,6 +119,7 @@ export function CreateVocabSetModal({
   const [aiNotes, setAiNotes] = useState("")
   const [aiCount, setAiCount] = useState(15)
   const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiStreamProgress, setAiStreamProgress] = useState<{ current: number; target: number } | null>(null)
   const [aiWords, setAiWords] = useState<VocabWord[]>([])
   /** trang hiện tại của danh sách từ AI gợi ý (mỗi trang AI_PREVIEW_PER_PAGE từ) */
   const [aiPage, setAiPage] = useState(1)
@@ -126,6 +127,7 @@ export function CreateVocabSetModal({
   const [aiNotice, setAiNotice] = useState<string | null>(null)
 
   const nameRef = useRef<HTMLInputElement>(null)
+  const aiAbortRef = useRef<AbortController | null>(null)
   /** vùng danh sách từ AI — dùng để cuộn lên đầu khi đổi trang */
   const aiListTopRef = useRef<HTMLUListElement | null>(null)
 
@@ -349,7 +351,17 @@ export function CreateVocabSetModal({
     setAiPage(Math.max(1, Math.ceil(nextLength / AI_PREVIEW_PER_PAGE)))
   }
 
-  /** Gọi AI sinh danh sách từ theo lựa chọn của người dùng */
+  /** Dừng tiến trình lấy thêm từ từ AI và giữ lại số từ đã có */
+  const handleStopStream = () => {
+    if (aiAbortRef.current) {
+      aiAbortRef.current.abort()
+      aiAbortRef.current = null
+    }
+    setAiGenerating(false)
+    setAiStreamProgress(null)
+  }
+
+  /** Gọi AI sinh danh sách từ theo lựa chọn của người dùng (Streaming: từ nào ra là hiện ngay) */
   const handleGenerate = async () => {
     if (!user) {
       setError("Bạn cần đăng nhập để tạo bộ từ vựng cá nhân.")
@@ -367,36 +379,76 @@ export function CreateVocabSetModal({
       return
     }
 
+    // Hủy request cũ nếu đang chạy
+    if (aiAbortRef.current) {
+      aiAbortRef.current.abort()
+    }
+    const abortController = new AbortController()
+    aiAbortRef.current = abortController
+
     setAiGenerating(true)
     setError(null)
     setAiNotice(null)
+    setAiWords([])
+    setAiPage(1)
+    setAiStreamProgress({ current: 0, target: aiCount })
+
     try {
-      const generated = await aiGenerateVocabWords({
-        topicId: topicField.topicId,
-        topicLabel: topicField.topicLabel ?? currentTopicLabel(),
-        prompt: aiPrompt,
-        level,
-        count: aiCount,
-        notes: aiNotes,
-      })
-      setAiWords(generated)
-      /* danh sách mới → xem từ trang đầu */
-      setAiPage(1)
-      /* Nếu AI vẫn trả thiếu từ thì báo rõ để người dùng biết mà xử lý */
-      setAiNotice(
-        generated.length < aiCount
-          ? `AI tạo được ${generated.length}/${aiCount} từ phù hợp với yêu cầu. Bạn có thể bấm "Ra lại" để tạo danh sách mới hoặc thêm từ thủ công.`
-          : null
+      await aiGenerateVocabWordsStream(
+        {
+          topicId: topicField.topicId,
+          topicLabel: topicField.topicLabel ?? currentTopicLabel(),
+          prompt: aiPrompt,
+          level,
+          count: aiCount,
+          notes: aiNotes,
+        },
+        (event) => {
+          if (event.type === "chunk" && event.words && event.words.length > 0) {
+            setAiWords((prev) => {
+              const seen = new Set(prev.map((w) => w.en.trim().toLowerCase()))
+              const fresh = (event.words || []).filter((w) => !seen.has(w.en.trim().toLowerCase()))
+              if (fresh.length === 0) return prev
+              return [...prev, ...fresh]
+            })
+            setAiStreamProgress({
+              current: event.current ?? 0,
+              target: event.target ?? aiCount,
+            })
+          } else if (event.type === "done") {
+            if (event.words && event.words.length > 0) {
+              setAiWords(event.words)
+            }
+            setAiGenerating(false)
+            setAiStreamProgress(null)
+            if (event.words && event.words.length < aiCount) {
+              setAiNotice(
+                `AI tạo được ${event.words.length}/${aiCount} từ phù hợp với yêu cầu. Bạn có thể bấm "Ra lại" để tạo danh sách mới hoặc thêm từ thủ công.`
+              )
+            }
+          }
+        },
+        abortController.signal
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không sinh được từ vựng bằng AI.")
+      if (!abortController.signal.aborted) {
+        setError(err instanceof Error ? err.message : "Không sinh được từ vựng bằng AI.")
+      }
     } finally {
-      setAiGenerating(false)
+      if (aiAbortRef.current === abortController) {
+        aiAbortRef.current = null
+        setAiGenerating(false)
+        setAiStreamProgress(null)
+      }
     }
   }
 
   /** Lưu bộ từ do AI sinh (đã qua xem trước / chỉnh sửa) */
   const handleSaveAi = async () => {
+    // Nếu đang stream từ thì dừng stream trước rồi lưu các từ hiện có
+    if (aiGenerating) {
+      handleStopStream()
+    }
     if (!user) {
       setError("Bạn cần đăng nhập để lưu bộ từ vựng cá nhân.")
       return
@@ -1070,24 +1122,49 @@ export function CreateVocabSetModal({
                   </label>
                 </section>
 
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  disabled={aiGenerating}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700 disabled:opacity-60"
-                >
-                  {aiGenerating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      AI đang ra từ…
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Ra từ bằng AI
-                    </>
-                  )}
-                </button>
+                {aiGenerating ? (
+                  <div className="space-y-3 rounded-2xl border border-purple-200 bg-purple-50/80 p-4 dark:border-purple-900/60 dark:bg-purple-950/40">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                        <span className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                          {aiWords.length > 0
+                            ? `Đã nhận ${aiWords.length}/${aiCount} từ · Đang tiếp tục lấy thêm…`
+                            : "AI đang tạo các từ đầu tiên…"}
+                        </span>
+                      </div>
+                      {aiWords.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleStopStream}
+                          className="rounded-full border border-purple-300 bg-white px-3 py-1 text-xs font-semibold text-purple-700 shadow-sm transition-colors hover:bg-purple-100 dark:border-purple-700 dark:bg-slate-800 dark:text-purple-300"
+                        >
+                          Dừng tại đây ({aiWords.length} từ)
+                        </button>
+                      )}
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-purple-200/60 dark:bg-purple-900/50">
+                      <div
+                        className="h-full rounded-full bg-purple-600 transition-all duration-300"
+                        style={{
+                          width: `${Math.min(100, Math.max(8, Math.round((aiWords.length / aiCount) * 100)))}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-purple-600 dark:text-purple-400">
+                      ⚡ Các từ đã có sẽ hiện ngay bên dưới. Bạn có thể xem trước, sửa hoặc lưu bất cứ lúc nào!
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-600/25 transition-all hover:bg-purple-700"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Ra từ bằng AI
+                  </button>
+                )}
                 {aiWords.length > 0 && (
                   <section>
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1197,7 +1274,7 @@ export function CreateVocabSetModal({
                   <button
                     type="button"
                     onClick={handleSaveAi}
-                    disabled={saving || aiGenerating || aiWords.length === 0}
+                    disabled={saving || aiWords.length === 0}
                     title={
                       aiWords.length === 0
                         ? "Hãy nhờ AI ra từ trước khi lưu"
@@ -1209,6 +1286,11 @@ export function CreateVocabSetModal({
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Đang lưu…
+                      </>
+                    ) : aiGenerating && aiWords.length > 0 ? (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Lưu ngay ({aiWords.length} từ)
                       </>
                     ) : (
                       <>

@@ -238,8 +238,13 @@ function collectWords(results: PromiseSettledResult<unknown>[]): VocabWord[] {
   )
 }
 
+let requiresReasoningOnModel = false
+
 /** Sinh danh sách từ vựng mới bằng AI, tự gọi bù nếu model trả thiếu so với `count` */
-export async function generateVocabWords(input: GenerateVocabInput): Promise<VocabWord[]> {
+export async function generateVocabWords(
+  input: GenerateVocabInput,
+  onChunk?: (newWords: VocabWord[], allWords: VocabWord[]) => void
+): Promise<VocabWord[]> {
   const { topic, prompt, level, count, notes } = input
 
   const startedAt = Date.now()
@@ -257,6 +262,7 @@ export async function generateVocabWords(input: GenerateVocabInput): Promise<Voc
         ? `- Các từ sau ĐÃ CÓ trong danh sách, tuyệt đối không lặp lại: ${existing.join(", ")}`
         : "",
       `Trả về đúng ${batchSize} phần tử trong mảng "words", không trùng nhau và chỉ dùng từ/cụm từ tiếng Anh. Tuyệt đối không dùng tiếng Trung hoặc ký tự Hán trong "en" hay "vi".`,
+      "CHỈ TRẢ VỀ JSON THUẦN, không viết suy luận <think>, không giải thích ngoài JSON.",
     ]
       .filter(Boolean)
       .join("\n")
@@ -265,7 +271,7 @@ export async function generateVocabWords(input: GenerateVocabInput): Promise<Voc
     batchSize: number,
     existing: string[],
     keyIndex: number,
-    reasoning: { enabled: false } | null = { enabled: false }
+    reasoning: { enabled: false } | null = requiresReasoningOnModel ? null : { enabled: false }
   ) =>
     openRouterChatJSON<unknown>(
       [
@@ -289,7 +295,8 @@ export async function generateVocabWords(input: GenerateVocabInput): Promise<Voc
     } catch (err) {
       const message = err instanceof Error ? err.message.toLowerCase() : ""
       if (!message.includes("reasoning")) throw err
-      console.warn("[vocab-ai] Provider yêu cầu bật reasoning → thử lại không tắt reasoning.")
+      requiresReasoningOnModel = true
+      console.warn("[vocab-ai] Provider yêu cầu bật reasoning → ghi nhớ và thử lại không tắt reasoning.")
       return await requestBatch(batchSize, existing, keyIndex, null)
     }
   }
@@ -309,16 +316,48 @@ export async function generateVocabWords(input: GenerateVocabInput): Promise<Voc
     throw lastError instanceof Error ? lastError : new Error(String(lastError))
   }
 
+  const words: VocabWord[] = []
+  const seenEn = new Set<string>()
+
+  const ingestBatchResult = (raw: unknown) => {
+    const valid = sanitizeWords(raw).filter((w) => w.en && w.vi)
+    if (valid.length === 0) return []
+    const fresh: VocabWord[] = []
+    for (const w of valid) {
+      if (words.length >= count) break
+      const key = w.en.trim().toLowerCase()
+      if (!seenEn.has(key)) {
+        seenEn.add(key)
+        words.push(w)
+        fresh.push(w)
+      }
+    }
+    if (fresh.length > 0 && onChunk) {
+      try {
+        onChunk(fresh, [...words])
+      } catch (e) {
+        console.error("[vocab-ai] onChunk error:", e)
+      }
+    }
+    return fresh
+  }
+
   /* Vòng 1: xin dư ~50% (tối đa +10 từ) vì model free hay trả thiếu, phần dư sẽ bị cắt khi đủ `count` */
   const firstRoundTarget = Math.min(count + 10, Math.ceil(count * 1.5))
-  const firstResults = await Promise.allSettled(
-    splitCount(firstRoundTarget, apiKeys.length).map((batchSize, index) =>
-      requestBatchWithFallback(batchSize, [], index)
-    )
+  const firstShares = splitCount(firstRoundTarget, apiKeys.length)
+
+  await Promise.allSettled(
+    firstShares.map(async (batchSize, index) => {
+      try {
+        const raw = await requestBatchWithFallback(batchSize, [], index)
+        ingestBatchResult(raw)
+      } catch (err) {
+        console.warn(`[vocab-ai] Vòng 1 batch ${index + 1}/${firstShares.length} lỗi:`, err instanceof Error ? err.message : err)
+      }
+    })
   )
-  logBatchFailures(firstResults, "Vòng 1")
-  let words = collectWords(firstResults)
-  console.log(`[vocab-ai] Vòng 1: ${words.length}/${count} từ (${apiKeys.length} key, model: ${VOCAB_MODELS[0]}).`)
+
+  console.log(`[vocab-ai] Vòng 1 hoàn tất: ${words.length}/${count} từ (${apiKeys.length} key, model: ${VOCAB_MODELS[0]}).`)
 
   /* Model free thường trả thiếu từ so với yêu cầu → gọi bù thêm vài vòng, mỗi vòng chỉ xin
      đúng số từ còn thiếu và liệt kê từ đã có để AI sinh từ mới, cho tới khi đủ `count`. */
@@ -330,20 +369,26 @@ export async function generateVocabWords(input: GenerateVocabInput): Promise<Voc
     }
     const existing = words.map((w) => w.en)
     const missing = count - words.length
-    const topUpResults = await Promise.allSettled(
-      splitCount(missing, apiKeys.length).map((batchSize, index) =>
-        /* đổi key mỗi vòng để tránh dồn vào key vừa lỗi hoặc chậm ở vòng trước */
-        requestBatchWithFallback(batchSize, existing, (index + round) % apiKeys.length)
-      )
+    const topUpShares = splitCount(missing, apiKeys.length)
+
+    let addedInRound = 0
+    await Promise.allSettled(
+      topUpShares.map(async (batchSize, index) => {
+        try {
+          const raw = await requestBatchWithFallback(batchSize, existing, (index + round) % apiKeys.length)
+          const fresh = ingestBatchResult(raw)
+          addedInRound += fresh.length
+        } catch (err) {
+          console.warn(`[vocab-ai] Vòng bù ${round} batch ${index + 1} lỗi:`, err instanceof Error ? err.message : err)
+        }
+      })
     )
-    logBatchFailures(topUpResults, `Vòng bù ${round}`)
-    const added = collectWords(topUpResults)
-    if (added.length === 0) {
+
+    if (addedInRound === 0) {
       console.warn(`[vocab-ai] Vòng bù ${round}: AI không trả thêm từ mới → dừng sớm.`)
       break /* AI không trả thêm được từ mới → dừng sớm, khỏi chờ vô ích */
     }
-    words = mergeWords([words, added])
-    console.log(`[vocab-ai] Vòng bù ${round}: +${added.length} từ → ${words.length}/${count}.`)
+    console.log(`[vocab-ai] Vòng bù ${round}: +${addedInRound} từ → ${words.length}/${count}.`)
   }
 
   if (words.length === 0) {

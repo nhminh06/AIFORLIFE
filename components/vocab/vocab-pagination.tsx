@@ -41,7 +41,7 @@ export function VocabPagination({ page, totalPages, onChange }: VocabPaginationP
         onClick={() => onChange(page - 1)}
         disabled={page <= 1}
         aria-label="Trang trước"
-        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-40"
+        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-300"
       >
         <ChevronLeft className="h-3.5 w-3.5" />
         Trước
@@ -63,7 +63,7 @@ export function VocabPagination({ page, totalPages, onChange }: VocabPaginationP
               "h-9 w-9 rounded-full border text-xs font-semibold transition-colors",
               item === page
                 ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-600/25"
-                : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-600"
+                : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-300"
             )}
           >
             {item}
@@ -76,7 +76,7 @@ export function VocabPagination({ page, totalPages, onChange }: VocabPaginationP
         onClick={() => onChange(page + 1)}
         disabled={page >= totalPages}
         aria-label="Trang sau"
-        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-40"
+        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-blue-300"
       >
         Sau
         <ChevronRight className="h-3.5 w-3.5" />

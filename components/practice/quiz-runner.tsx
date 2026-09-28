@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, ArrowRight, CheckCircle2, RotateCcw, XCircle } from "lucide-react"
 
 import { getPracticeType, type Exercise, type PracticeResult } from "@/lib/data/practice"
+import { useStudyAudio } from "@/lib/study-audio-hooks"
 import { cn } from "@/lib/utils"
 
 import { ChoiceQuestion } from "./choice-question"
@@ -38,6 +39,31 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
 
   const current = exercise.items[index]
 
+  /* Cài đặt "Hiệu ứng âm thanh" — phát âm đúng/sai sau khi trả lời */
+  const audio = useStudyAudio()
+
+  /** Đánh giá đáp án vừa chọn/nhập rồi phát âm tương ứng. */
+  const playResultSound = (candidate: number | string | boolean) => {
+    const isChoice =
+      current.kind === "choice" ||
+      current.kind === "listen" ||
+      current.kind === "reading" ||
+      current.kind === "listening"
+
+    const correct = isChoice
+      ? candidate === (current as { correctIndex: number }).correctIndex
+      : current.kind === "fill"
+        ? norm(String(candidate)) === norm((current as { answer: string }).answer)
+        : current.kind === "order"
+          ? norm(String(candidate)) === norm((current as { sentence: string }).sentence)
+          : current.kind === "true-false"
+            ? candidate === (current as { answer: boolean }).answer
+            : String(candidate).trim().length > 0
+
+    if (correct) audio.correct()
+    else audio.wrong()
+  }
+
   const correctText =
     current.kind === "choice" || current.kind === "listen" || current.kind === "reading" || current.kind === "listening"
       ? current.options[current.correctIndex]
@@ -65,6 +91,7 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
 
   const choose = (i: number) => {
     if (checked) return
+    playResultSound(i)
     setAnswers((p) => {
       const n = [...p]
       n[index] = i
@@ -75,6 +102,7 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
 
   const submitInput = () => {
     if (checked || !input.trim()) return
+    playResultSound(input)
     setAnswers((p) => {
       const n = [...p]
       n[index] = input
@@ -91,6 +119,7 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
   const submitOrder = () => {
     if (checked || current.kind !== "order" || picked.length === 0) return
     const built = picked.map((w) => current.words[w]).join(" ")
+    playResultSound(built)
     setAnswers((p) => {
       const n = [...p]
       n[index] = built
@@ -101,6 +130,7 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
 
   const chooseTrueFalse = (value: boolean) => {
     if (checked || current.kind !== "true-false") return
+    playResultSound(value)
     setAnswers((p) => { const next = [...p]; next[index] = value; return next })
     setChecked(true)
   }
@@ -128,6 +158,7 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
     if (current.kind === "writing" && !writingGrade) await gradeWriting()
     if (current.kind === "writing" && !writingGrade && grading) return
     if (index + 1 >= total) {
+      audio.success()
       onCompleted?.({ score, total })
       setFinished(true)
       return

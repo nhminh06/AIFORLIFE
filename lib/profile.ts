@@ -89,7 +89,13 @@ function writeJson(key: string, value: unknown) {
 }
 
 export function loadProfile(): Profile {
-  return readJson(PROFILE_KEY, defaultProfile)
+  const profile = readJson(PROFILE_KEY, defaultProfile)
+  // localStorage dùng chung cho mọi tài khoản, nên tên lưu lại có thể là tên của
+  // người dùng trước đó hoặc tên lấy nhầm từ email → chuẩn hóa trước khi dùng.
+  return {
+    ...profile,
+    name: resolveUserName({ profileName: profile.name, email: profile.email }),
+  }
 }
 
 export function saveProfile(p: Profile) {
@@ -163,6 +169,44 @@ export function saveSettings(s: StudySettings, uid?: string | null) {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(SETTINGS_UPDATED_EVENT))
   }
+}
+
+/**
+ * Một "tên" được sinh tự động từ phần trước "@" của email (VD "minhnhn.24itb@vku.udn.vn"
+ * -> "minhnhn.24itb") KHÔNG phải tên người dùng — không được dùng làm tên hiển thị.
+ * Trả về true nếu `name` rỗng hoặc trùng local-part của email (kể cả khi đã bỏ dấu
+ * `_`, `.`, `-`).
+ */
+export function isEmailDerivedName(name?: string | null, email?: string | null): boolean {
+  const value = (name ?? "").trim().toLowerCase()
+  if (!value) return true
+
+  const localPart = (email ?? "").split("@")[0]?.trim().toLowerCase() ?? ""
+  if (!localPart) return false
+
+  const strip = (s: string) => s.replace(/[._-]+/g, "")
+  return value === localPart || strip(value) === strip(localPart)
+}
+
+/**
+ * Chọn tên hiển thị cho người dùng:
+ * 1. Tên đã lưu trong hồ sơ (nếu đó là tên thật, không phải tên sinh từ email)
+ * 2. displayName của tài khoản Firebase (đăng ký Google / email có khai tên)
+ * 3. Chuỗi rỗng — giao diện sẽ hiện lời nhắc người dùng nhập tên.
+ *
+ * KHÔNG bao giờ tự suy ra tên từ email.
+ */
+export function resolveUserName(options: {
+  profileName?: string | null
+  displayName?: string | null
+  email?: string | null
+}): string {
+  const { profileName, displayName, email } = options
+
+  if (profileName && !isEmailDerivedName(profileName, email)) return profileName.trim()
+  if (displayName && !isEmailDerivedName(displayName, email)) return displayName.trim()
+
+  return ""
 }
 
 /** Lấy 2 chữ cái đầu làm avatar, VD "Ngọc Hân" -> "NH". */

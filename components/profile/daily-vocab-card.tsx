@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { CalendarDays, ChevronDown, ChevronRight, Sparkles, Volume2 } from "lucide-react"
 
@@ -13,9 +13,15 @@ import {
 } from "@/lib/daily-vocab"
 import type { VocabWord } from "@/lib/data/vocabulary"
 import { useAuth } from "@/lib/auth-context"
+import { VocabPagination } from "@/components/vocab/vocab-pagination"
 
-/** Số ngày hiển thị ban đầu, nút "Xem thêm" sẽ mở rộng */
-const INITIAL_DAYS = 7
+/**
+ * Số ngày hiển thị trên mỗi trang.
+ * Lịch sử tối đa 30 ngày (xem lib/daily-vocab.ts) nên nếu hiển thị hết,
+ * trang cá nhân sẽ bị kéo dài rất dài — vì vậy dùng phân trang.
+ * 3 ngày/trang: mỗi ngày 5 từ, cuộn vừa đủ và thấy phân trang sớm.
+ */
+const DAYS_PER_PAGE = 3
 
 /** Nhãn ngày: "Hôm nay", "Hôm qua" hoặc ngày đầy đủ tiếng Việt */
 function dayLabel(dateKey: string): string {
@@ -66,7 +72,8 @@ export function DailyVocabCard() {
   const uid = user?.uid ?? null
   const [days, setDays] = useState<DailyVocabDay[]>([])
   const [ready, setReady] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const [page, setPage] = useState(1)
+  const sectionRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const load = () => setDays(loadDailyVocabDays(uid))
@@ -87,13 +94,40 @@ export function DailyVocabCard() {
     })
   }, [uid, userProfile.level])
 
-  const visibleDays = expanded ? days : days.slice(0, INITIAL_DAYS)
+  /* Phân trang: mỗi trang tối đa DAYS_PER_PAGE ngày, mới nhất trước */
+  const totalPages = Math.max(1, Math.ceil(days.length / DAYS_PER_PAGE))
+  const currentPage = Math.min(page, totalPages)
+  const pageOffset = (currentPage - 1) * DAYS_PER_PAGE
+  const visibleDays = days.slice(pageOffset, pageOffset + DAYS_PER_PAGE)
+
+  /* Đổi người dùng → quay lại trang đầu cho đúng dữ liệu */
+  useEffect(() => {
+    setPage(1)
+  }, [uid])
+
+  /* Hôm sinh bộ từ mới → đưa người dùng về trang 1 để thấy ngay */
   const todayKeyStr = days[0]?.date
+  const lastSeenTodayRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (todayKeyStr && todayKeyStr !== lastSeenTodayRef.current) {
+      lastSeenTodayRef.current = todayKeyStr
+      setPage(1)
+    }
+  }, [todayKeyStr])
+
+  const changePage = (next: number) => {
+    const target = Math.min(Math.max(next, 1), totalPages)
+    if (target === currentPage) return
+    setPage(target)
+    // Cuộn về đầu thẻ để không bị lửng lơ giữa trang khi chuyển trang
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
 
   return (
     <section
       id="daily-vocab-section"
-      className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
+      ref={sectionRef}
+      className="scroll-mt-24 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
     >
       <div className="mt-4 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -173,15 +207,17 @@ export function DailyVocabCard() {
             )
           })}
 
-          {days.length > INITIAL_DAYS && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-slate-800"
-            >
-              {expanded ? "Thu gọn" : `Xem thêm ${days.length - INITIAL_DAYS} ngày trước đó`}
-            </button>
-          )}
+          {/* Dòng thông tin trang — hiển thị luôn để thấy rõ cơ chế phân trang */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Đang xem {pageOffset + 1}–{pageOffset + visibleDays.length} trong {days.length} ngày
+            </p>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Trang {currentPage}/{totalPages}
+            </p>
+          </div>
+
+          <VocabPagination page={currentPage} totalPages={totalPages} onChange={changePage} />
         </div>
       )}
     </section>

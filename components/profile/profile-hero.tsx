@@ -107,6 +107,23 @@ export function ProfileHero() {
   const currentPresetId = editing ? draft.avatarPreset : userProfile.avatarPreset
   const activePreset = AVATAR_PRESETS.find((p) => p.id === currentPresetId)
 
+  /* Tên thật của người dùng. Không bao giờ hiển thị tên lấy từ email
+     (VD "minhnhn.24itb") — nếu chưa có tên thì mời người dùng nhập. */
+  const displayName = (userProfile.name || "").trim()
+  const hasName = displayName.length > 0
+  const avatarInitials = initials(editing ? draft.name || displayName : displayName)
+
+  /** Mở form chỉnh sửa (nạp lại draft từ hồ sơ hiện tại) */
+  const startEditing = () => {
+    setDraft({
+      ...userProfile,
+      avatarPreset: userProfile.avatarPreset || "owl",
+      avatarColor: userProfile.avatarColor || "from-blue-500 to-indigo-600",
+      photoURL: userProfile.photoURL || "",
+    })
+    setEditing(true)
+  }
+
   const currentStreak = stats ? stats.currentStreak : 0
   const totalXp = stats ? stats.totalXp : 0
 
@@ -172,7 +189,7 @@ export function ProfileHero() {
                 {currentPhoto ? (
                   <img
                     src={currentPhoto}
-                    alt={userProfile.name}
+                    alt={displayName || "Ảnh đại diện"}
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
                   />
@@ -181,7 +198,7 @@ export function ProfileHero() {
                     {activePreset.emoji}
                   </span>
                 ) : (
-                  initials(editing ? draft.name || userProfile.name : userProfile.name)
+                  avatarInitials
                 )}
               </span>
               <span
@@ -196,9 +213,26 @@ export function ProfileHero() {
 
             {/* FIX: pt-14 (56px) để tên nằm dưới mép banner, thay cho mb-1 */}
             <div className="min-w-0 pt-14">
-              <h3 className="text-xl font-bold leading-snug text-slate-900 dark:text-white sm:text-2xl">
-                {userProfile.name}
-              </h3>
+              {hasName ? (
+                <h3 className="truncate text-xl font-bold leading-snug text-slate-900 dark:text-white sm:text-2xl">
+                  {displayName}
+                </h3>
+              ) : (
+                /* Chưa có tên thật (không suy ra từ email) — mời người dùng nhập ngay */
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="group flex items-center gap-2 text-left"
+                >
+                  <h3 className="text-xl font-bold leading-snug text-slate-400 transition-colors group-hover:text-blue-500 dark:text-slate-500 sm:text-2xl">
+                    Chưa có tên
+                  </h3>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 transition-colors hover:border-blue-300 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-300">
+                    <PencilLine className="h-3 w-3" />
+                    Thêm tên
+                  </span>
+                </button>
+              )}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1">
                   <Mail className="h-3.5 w-3.5" />
@@ -244,13 +278,11 @@ export function ProfileHero() {
             <button
               type="button"
               onClick={() => {
-                setDraft({
-                  ...userProfile,
-                  avatarPreset: userProfile.avatarPreset || "owl",
-                  avatarColor: userProfile.avatarColor || "from-blue-500 to-indigo-600",
-                  photoURL: userProfile.photoURL || "",
-                })
-                setEditing((v) => !v)
+                if (editing) {
+                  setEditing(false)
+                  return
+                }
+                startEditing()
               }}
               className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
@@ -433,8 +465,14 @@ export function ProfileHero() {
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                   placeholder="Nhập tên của bạn"
                   required
+                  minLength={2}
+                  maxLength={60}
+                  autoComplete="name"
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:ring-blue-900"
                 />
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Tên này sẽ hiển thị trên trang cá nhân, không dùng email làm tên.
+                </p>
               </label>
 
               <label className="block">

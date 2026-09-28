@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, CalendarDays, Loader2, RotateCcw, Sparkles, Volume2 } from "lucide-react"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
 import { VocabularyLearner } from "@/components/vocab/vocabulary-learner"
+import { VocabPagination } from "@/components/vocab/vocab-pagination"
 import { useAuth } from "@/lib/auth-context"
 import {
   DAILY_VOCAB_UPDATED_EVENT,
@@ -15,6 +16,9 @@ import {
 } from "@/lib/daily-vocab"
 import type { VocabWord } from "@/lib/data/vocabulary"
 import { speak } from "@/lib/speak"
+
+/** Số ngày hiển thị trên mỗi trang (lịch sử tối đa 30 ngày) */
+const DAYS_PER_PAGE = 3
 
 /* Xáo trộn Fisher–Yates — giống cách ôn ngẫu nhiên ở trang Ôn tập */
 function shuffleArray<T>(arr: T[]): T[] {
@@ -54,6 +58,8 @@ export default function TuVungTheoNgayPage() {
   const [reviewing, setReviewing] = useState(false)
   const [reviewQueue, setReviewQueue] = useState<VocabWord[]>([])
   const [index, setIndex] = useState(0)
+  const [page, setPage] = useState(1)
+  const listTopRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const load = () => setDays(loadDailyVocabDays(uid))
@@ -87,6 +93,19 @@ export default function TuVungTheoNgayPage() {
     setReviewQueue(shuffleArray(allWords))
     setIndex(0)
     setReviewing(true)
+  }
+
+  /* Phân trang danh sách ngày: mỗi trang tối đa DAYS_PER_PAGE ngày */
+  const totalPages = Math.max(1, Math.ceil(days.length / DAYS_PER_PAGE))
+  const currentPage = Math.min(page, totalPages)
+  const pageOffset = (currentPage - 1) * DAYS_PER_PAGE
+  const pagedDays = days.slice(pageOffset, pageOffset + DAYS_PER_PAGE)
+
+  const changePage = (next: number) => {
+    const target = Math.min(Math.max(next, 1), totalPages)
+    if (target === currentPage) return
+    setPage(target)
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
 
   const current = reviewQueue[index]
@@ -234,8 +253,8 @@ export default function TuVungTheoNgayPage() {
             </button>
           </div>
 
-          <div className="mt-6 space-y-4">
-            {days.map((day) => (
+          <div ref={listTopRef} className="mt-6 scroll-mt-24 space-y-4">
+            {pagedDays.map((day) => (
               <section
                 key={day.date}
                 className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none"
@@ -277,6 +296,18 @@ export default function TuVungTheoNgayPage() {
                 </ul>
               </section>
             ))}
+
+            {/* Dòng thông tin trang — hiển thị luôn để thấy rõ cơ chế phân trang */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Đang xem {pageOffset + 1}–{pageOffset + pagedDays.length} trong {days.length} ngày
+              </p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Trang {currentPage}/{totalPages}
+              </p>
+            </div>
+
+            <VocabPagination page={currentPage} totalPages={totalPages} onChange={changePage} />
           </div>
         </>
       )}

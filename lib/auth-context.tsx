@@ -27,6 +27,8 @@ import {
   saveSettings,
   loadSettings,
   mergeStudySettings,
+  resolveUserName,
+  isEmailDerivedName,
   PROFILE_UPDATED_EVENT,
   SETTINGS_UPDATED_EVENT,
 } from "@/lib/profile"
@@ -110,7 +112,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!exists) {
             const newProfile: UserProfileData = {
               ...defaultProfile,
-              name: currentUser.displayName || currentUser.email?.split("@")[0] || defaultProfile.name,
+              name: resolveUserName({
+                displayName: currentUser.displayName,
+                email: currentUser.email,
+              }),
               email: currentUser.email || defaultProfile.email,
               photoURL: currentUser.photoURL || null,
               uid: currentUser.uid,
@@ -144,7 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const merged: UserProfileData = {
             ...defaultProfile,
             ...data,
-            name: data.name || currentUser.displayName || defaultProfile.name,
+            // Tên cũ có thể đã bị ghi nhầm từ email (VD "minhnhn.24itb") — loại bỏ,
+            // chỉ giữ tên thật do người dùng khai hoặc displayName từ Firebase.
+            name: resolveUserName({
+              profileName: data.name,
+              displayName: currentUser.displayName,
+              email: currentUser.email || data.email,
+            }),
             email: currentUser.email || data.email || defaultProfile.email,
             photoURL: currentUser.photoURL || data.photoURL || null,
             uid: currentUser.uid,
@@ -160,6 +171,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setStudySettings(mergedSettings)
           saveSettings(mergedSettings, currentUser.uid)
           setLoading(false)
+
+          // Tự lành dữ liệu cũ: doc Firestore đang lưu tên lấy từ email
+          // (VD "minhnhn.24itb") → ghi đè bằng tên thật (hoặc xoá hẳn nếu chưa có).
+          const storedName = (data.name ?? "").trim()
+          if (storedName && isEmailDerivedName(storedName, merged.email) && storedName !== merged.name) {
+            void updateDoc(userDocRef, { name: merged.name, updatedAt: serverTimestamp() }).catch(
+              (err) => console.warn("Không tự sửa được tên hồ sơ trên Firestore:", err),
+            )
+          }
         }
 
         unsubscribeUserDoc = onSnapshot(
@@ -169,7 +189,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error("Lỗi khi lắng nghe hồ sơ người dùng từ Firestore:", err)
             const fallback: UserProfileData = {
               ...loadProfile(),
-              name: currentUser.displayName || currentUser.email?.split("@")[0] || defaultProfile.name,
+              name: resolveUserName({
+                displayName: currentUser.displayName,
+                email: currentUser.email,
+              }),
               email: currentUser.email || defaultProfile.email,
               photoURL: currentUser.photoURL || null,
               uid: currentUser.uid,
@@ -203,8 +226,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Đăng ký bằng Email & Password
   const registerWithEmail = async (email: string, pass: string, name: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, pass)
-    if (name.trim() && cred.user) {
-      await updateFirebaseProfile(cred.user, { displayName: name.trim() })
+    const cleanName = name.trim()
+    if (cleanName && cred.user) {
+      await updateFirebaseProfile(cred.user, { displayName: cleanName })
+      // onAuthStateChanged có thể đã tạo doc với tên rỗng trước khi displayName
+      // kịp được set → ghi lại tên thật để hồ sơ không bị trống.
+      try {
+        await setDoc(
+          doc(db, "users", cred.user.uid),
+          { name: cleanName, email: cred.user.email ?? email },
+          { merge: true },
+        )
+      } catch (err) {
+        console.warn("Không ghi được tên người dùng lên Firestore:", err)
+      }
     }
     closeAuthModal()
   }

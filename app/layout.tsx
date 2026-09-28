@@ -6,6 +6,7 @@ import { ThemeProvider, themeInitScript } from '@/lib/theme'
 import { AuthProvider } from '@/lib/auth-context'
 import { AuthModal } from '@/components/auth/auth-modal'
 import { DailyStudyWidget } from '@/components/dashboard/daily-study-widget'
+import { ReminderScheduler } from '@/lib/study-audio-hooks'
 
 const inter = Inter({
   subsets: ['latin', 'vietnamese'],
@@ -57,6 +58,8 @@ export default function RootLayout({
           </ThemeProvider>
           <AuthModal />
           <DailyStudyWidget />
+          {/* Nhắc nhở hằng ngày hoạt động ở mọi trang */}
+          <ReminderScheduler />
         </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

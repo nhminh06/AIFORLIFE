@@ -17,6 +17,7 @@ import {
 import { aiVocabExample } from "@/lib/ai-vocab"
 import type { VocabWord } from "@/lib/data/vocabulary"
 import { speak } from "@/lib/speak"
+import { useStudyAudio } from "@/lib/study-audio-hooks"
 import { getSavedVocabExample, saveVocabExample } from "@/lib/vocab-examples"
 import { cn } from "@/lib/utils"
 import { emitWordLearned } from "@/components/dashboard/daily-study-widget"
@@ -100,6 +101,9 @@ export function VocabularyLearner({
   const [exampleAttempts, setExampleAttempts] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  /* Cài đặt: tự phát âm từ mới (autoplay) + âm thanh đúng/sai (soundEffects) */
+  const audio = useStudyAudio(word.en)
 
   /* Từ rỗng (dữ liệu lỗi) → hiển thị fallback thay vì crash ở các phase */
   const hasWord = (word.en ?? "").trim().length > 0
@@ -242,6 +246,9 @@ export function VocabularyLearner({
 
   const handleSubmitDictation = () => {
     if (checked || !userInput.trim()) return
+    // Phát âm đúng/sai theo cài đặt "Hiệu ứng âm thanh".
+    if (normalizeAnswer(userInput) === normalizeAnswer(word.en)) audio.correct()
+    else audio.wrong()
     setChecked(true)
   }
 
@@ -255,6 +262,7 @@ export function VocabularyLearner({
 
   const handleDone = () => {
     if (!isCorrect) return
+    audio.success()
     emitWordLearned()
     onLearned()
     setPhase("done")

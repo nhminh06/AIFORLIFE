@@ -18,31 +18,16 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { speak } from "@/lib/speak"
 import type { StudySettings } from "@/lib/profile"
+import {
+  disableReminder,
+  enableReminder,
+  fireReminder,
+  postReminderTimeToSW,
+} from "@/lib/reminder"
+import { playSuccessSound, unlockAudio } from "@/lib/speak"
 
 const WORD_GOALS = [5, 10, 15, 20, 30]
 const MINUTE_GOALS = [10, 15, 20, 30, 45, 60]
-
-// Hàm phát âm thanh hiệu ứng mẫu (Web Audio API không cần file bên ngoài)
-function playSampleChime() {
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-    if (!AudioCtx) return
-    const ctx = new AudioCtx()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = "sine"
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime) // D5
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15) // A5
-    gain.gain.setValueAtTime(0.15, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.3)
-  } catch {
-    /* bỏ qua */
-  }
-}
 
 export function StudySettingsCard() {
   const { studySettings, updateStudySettings } = useAuth()
@@ -56,20 +41,24 @@ export function StudySettingsCard() {
 
   const handleToggleReminder = async () => {
     const nextVal = !draft.reminder
-    setDraft({ ...draft, reminder: nextVal })
-
-    if (nextVal && typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        const perm = await Notification.requestPermission()
-        if (perm === "granted") {
-          setNotificationMsg("Đã bật cấp quyền thông báo trình duyệt thành công!")
-          setTimeout(() => setNotificationMsg(null), 4000)
-        } else if (perm === "denied") {
-          setNotificationMsg("Bạn đã từ chối thông báo trên trình duyệt. Vui lòng bật lại trong cài đặt trang nếu cần.")
-          setTimeout(() => setNotificationMsg(null), 5000)
-        }
-      }
+    if (!nextVal) {
+      setDraft({ ...draft, reminder: false })
+      await disableReminder()
+      return
     }
+
+    // Bật → phải xin cấp quyền thông báo (chỉ hợp lệ trong thao tác của người dùng).
+    const granted = await enableReminder()
+    if (!granted) {
+      setNotificationMsg("Bạn cần cho phép thông báo trên trình duyệt để nhận nhắc nhở hằng ngày.")
+      setTimeout(() => setNotificationMsg(null), 6000)
+      return
+    }
+
+    setDraft({ ...draft, reminder: true })
+    postReminderTimeToSW(draft.reminderTime)
+    setNotificationMsg("Đã bật nhắc nhở hằng ngày!")
+    setTimeout(() => setNotificationMsg(null), 4000)
   }
 
   const handleSave = async (e: React.FormEvent) => {
@@ -195,16 +184,34 @@ export function StudySettingsCard() {
           </div>
 
           {draft.reminder && (
-            <div className="mt-4 flex items-center justify-between border-t border-slate-200/60 pt-3 dark:border-slate-700/60">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                Giờ nhắc hàng ngày
-              </span>
-              <input
-                type="time"
-                value={draft.reminderTime}
-                onChange={(e) => setDraft({ ...draft, reminderTime: e.target.value })}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
+            <div className="mt-4 border-t border-slate-200/60 pt-3 dark:border-slate-700/60">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                  Giờ nhắc hàng ngày
+                </span>
+                <input
+                  type="time"
+                  value={draft.reminderTime}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    setDraft({ ...draft, reminderTime: next })
+                    postReminderTimeToSW(next)
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  fireReminder({ force: true })
+                  setNotificationMsg("Đã gửi 1 thông báo nhắc nhở thử — kiểm tra khay hệ thống của bạn.")
+                  setTimeout(() => setNotificationMsg(null), 5000)
+                }}
+                className="mt-2.5 inline-flex items-center gap-1.5 text-[11px] font-semibold text-orange-700 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300"
+              >
+                <Play className="h-3 w-3" />
+                Gửi thử thông báo nhắc nhở
+              </button>
             </div>
           )}
 
@@ -226,7 +233,7 @@ export function StudySettingsCard() {
                     Tự phát âm từ mới
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Khi mở danh sách bài học
+                    Tự phát âm từ đang học
                   </p>
                 </div>
               </div>
@@ -267,7 +274,7 @@ export function StudySettingsCard() {
                     Hiệu ứng âm thanh
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Khi trả lời câu hỏi đúng
+                    Khi trả lời đúng hoặc sai
                   </p>
                 </div>
               </div>
@@ -292,7 +299,10 @@ export function StudySettingsCard() {
             <div className="mt-3 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
               <button
                 type="button"
-                onClick={playSampleChime}
+                onClick={() => {
+                  unlockAudio()
+                  playSuccessSound()
+                }}
                 className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
               >
                 <Play className="h-3 w-3" />

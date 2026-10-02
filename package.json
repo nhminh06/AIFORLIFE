@@ -8,7 +8,10 @@
     "build": "next build",
     "start": "next start",
     "push:phrases": "node scripts/push-phrases-to-firebase.mjs",
-    "seed:practice": "node scripts/seed-practice.mjs"
+    "seed:practice": "node scripts/seed-practice.mjs",
+    "ml:train": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/train.py",
+    "ml:predict": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/predict.py",
+    "ml:import:asap": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/import_asap.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

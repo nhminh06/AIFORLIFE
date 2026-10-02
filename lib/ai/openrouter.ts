@@ -123,20 +123,23 @@ export class OpenRouterError extends Error {
   }
 }
 
-/** Cắt bỏ markdown code fence nếu model bọc JSON trong ```json ... ``` */
+/** Cắt bỏ markdown code fence và thẻ suy luận <think> nếu model trả về */
 function stripCodeFence(text: string): string {
-  const trimmed = text.trim()
-  const fence = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
-  return fence ? fence[1].trim() : trimmed
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim()
+  const fence = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fence) return fence[1].trim()
+  return cleaned
 }
 
 /** Cắt lấy object JSON đầu tiên (phòng khi model thêm chữ giải thích bên ngoài) */
 function extractJsonObject(text: string): string | null {
-  const start = text.indexOf("{")
-  const end = text.lastIndexOf("}")
+  const cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim()
+  const start = cleaned.indexOf("{")
+  const end = cleaned.lastIndexOf("}")
   if (start === -1 || end === -1 || end <= start) return null
-  return text.slice(start, end + 1)
+  return cleaned.slice(start, end + 1)
 }
+
 
 /** Đọc thông báo lỗi mà OpenRouter trả về (nếu có) để hiển thị cho người dùng */
 async function readErrorMessage(res: Response): Promise<string> {

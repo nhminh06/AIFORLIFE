@@ -1,4 +1,4 @@
-import { openRouterChatJSON } from "@/lib/ai/openrouter"
+import { scoreEssayML, type EssayFeatures } from "@/lib/ai/local-scorer"
 
 export const runtime = "nodejs"
 
@@ -8,17 +8,15 @@ type GradeResult = {
   feedback: string
   strengths: string[]
   corrections: string[]
+  features?: EssayFeatures
+  featureContributions?: Record<string, number>
+  modelInfo?: {
+    modelType: string
+    r2Score: number
+    rmse: number
+    pearsonR: number
+  }
 }
-
-const SYSTEM_PROMPT = `Bạn là giáo viên tiếng Anh chấm bài viết cho người Việt.
-Trả về DUY NHẤT JSON hợp lệ theo dạng:
-{"score":78,"level":"Tốt","feedback":"...","strengths":["..."],"corrections":["..."]}
-Quy tắc:
-- score là số nguyên từ 0 đến 100.
-- Chấm dựa trên mức độ hoàn thành yêu cầu, ngữ pháp, từ vựng, mạch lạc và độ tự nhiên.
-- feedback, strengths, corrections viết bằng tiếng Việt, ngắn gọn và cụ thể.
-- Không bịa lỗi nếu bài viết đúng.
-- Không trả markdown hoặc trường nào khác.`
 
 export async function POST(request: Request) {
   try {
@@ -28,29 +26,27 @@ export async function POST(request: Request) {
     const minWords = Number(body.minWords) || 50
     if (!prompt || !answer) return Response.json({ error: "Thiếu đề bài hoặc bài viết." }, { status: 400 })
 
-    const result = await openRouterChatJSON<GradeResult>([
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: [
-          `Đề bài: ${prompt}`,
-          `Số từ tối thiểu: ${minWords}`,
-          `Bài viết của người học:`,
-          answer,
-          "Hãy chấm bài và đưa ra góp ý có thể áp dụng ngay.",
-        ].join("\n\n"),
-      },
-    ], { temperature: 0.2, reasoning: { enabled: false }, maxAttempts: 2 })
+    // Chấm điểm 100% bằng mô hình Machine Learning nội bộ (Ridge Regression trained on 1,000 ASAP essays)
+    // Hoàn toàn không gọi API bên ngoài (OpenRouter)
+    const mlResult = scoreEssayML(answer, minWords)
 
     return Response.json({
-      score: Math.min(100, Math.max(0, Math.round(Number(result.score) || 0))),
-      level: result.level || "Đạt",
-      feedback: result.feedback || "Bài viết đã được chấm.",
-      strengths: Array.isArray(result.strengths) ? result.strengths.slice(0, 4) : [],
-      corrections: Array.isArray(result.corrections) ? result.corrections.slice(0, 5) : [],
+      score: mlResult.score,
+      level: mlResult.level,
+      feedback: mlResult.feedback,
+      strengths: mlResult.strengths,
+      corrections: mlResult.suggestions,
+      features: mlResult.features,
+      featureContributions: mlResult.featureContributions,
+      modelInfo: {
+        modelType: "Ridge Regression (AES - 1.000 Essays)",
+        r2Score: mlResult.metrics.r2_score,
+        rmse: mlResult.metrics.rmse,
+        pearsonR: mlResult.metrics.pearson_r,
+      },
     } satisfies GradeResult)
   } catch (error) {
     console.error("[api/ai/practice/grade] Lỗi:", error)
-    return Response.json({ error: error instanceof Error ? error.message : "Không chấm được bài viết." }, { status: 502 })
+    return Response.json({ error: error instanceof Error ? error.message : "Không chấm được bài viết." }, { status: 500 })
   }
 }

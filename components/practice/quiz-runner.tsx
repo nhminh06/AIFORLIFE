@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, CheckCircle2, RotateCcw, XCircle } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle2, RotateCcw, XCircle, Cpu, Sparkles, BarChart2 } from "lucide-react"
 
 import { getPracticeType, type Exercise, type PracticeResult } from "@/lib/data/practice"
 import { useStudyAudio } from "@/lib/study-audio-hooks"
@@ -22,6 +22,20 @@ type WritingGrade = {
   feedback: string
   strengths: string[]
   corrections: string[]
+  features?: {
+    word_count: number
+    avg_sentence_length: number
+    lexical_diversity: number
+    advanced_vocab_ratio: number
+    flesch_reading_ease: number
+    cohesive_density: number
+  }
+  featureContributions?: Record<string, number>
+  modelInfo?: {
+    modelType: string
+    r2Score: number
+    rmse: number
+  }
 }
 
 export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCompleted?: (result: PracticeResult) => void }) {
@@ -204,14 +218,119 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
           {pctScore >= 80 ? " Xuất sắc, giữ vững phong độ nhé!" : " Cố gắng thêm chút nữa nhé!"}
         </p>
         {writingGrade && (
-          <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-left dark:border-blue-900/50 dark:bg-blue-950/30">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-bold text-blue-900 dark:text-blue-200">AI chấm bài viết</h3>
-              <span className="rounded-full bg-blue-600 px-3 py-1 text-sm font-bold text-white">{writingGrade.score}/100 · {writingGrade.level}</span>
+          <div className="mt-6 rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-indigo-50/70 via-white to-blue-50/40 p-5 text-left shadow-sm dark:border-indigo-900/60 dark:from-indigo-950/40 dark:via-slate-900/40 dark:to-blue-950/20">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100/80 pb-4 dark:border-indigo-900/50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/25">
+                  <Cpu className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white">Mô hình Machine Learning (Cục bộ)</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Được huấn luyện trên <strong>1.000 bài viết</strong> (ASAP-AES Benchmark)
+                  </p>
+                </div>
+              </div>
+              <span
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-sm font-bold shadow-sm",
+                  writingGrade.score >= 85
+                    ? "bg-emerald-600 text-white"
+                    : writingGrade.score >= 70
+                    ? "bg-blue-600 text-white"
+                    : writingGrade.score >= 50
+                    ? "bg-amber-500 text-white"
+                    : "bg-rose-500 text-white"
+                )}
+              >
+                {writingGrade.score}/100 · {writingGrade.level}
+              </span>
             </div>
-            <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">{writingGrade.feedback}</p>
-            {writingGrade.strengths.length > 0 && <p className="mt-3 text-sm text-green-700 dark:text-green-300"><strong>Điểm tốt:</strong> {writingGrade.strengths.join("; ")}</p>}
-            {writingGrade.corrections.length > 0 && <p className="mt-2 text-sm text-amber-700 dark:text-amber-300"><strong>Cần cải thiện:</strong> {writingGrade.corrections.join("; ")}</p>}
+
+            {/* 6 Đặc trưng ngôn ngữ (NLP Features) trích xuất cục bộ */}
+            {writingGrade.features && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Chỉ số ngôn ngữ học (NLP Features) & Đóng góp điểm (XAI):
+                </p>
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80">
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Tổng số từ</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white">{writingGrade.features.word_count} từ</p>
+                    {writingGrade.featureContributions?.word_count !== undefined && (
+                      <span className={cn("text-[11px] font-semibold", writingGrade.featureContributions.word_count >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>
+                        {writingGrade.featureContributions.word_count >= 0 ? "+" : ""}{writingGrade.featureContributions.word_count.toFixed(1)}đ
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80">
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Độ dài câu TB</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white">{writingGrade.features.avg_sentence_length.toFixed(1)} từ/câu</p>
+                    {writingGrade.featureContributions?.avg_sentence_length !== undefined && (
+                      <span className={cn("text-[11px] font-semibold", writingGrade.featureContributions.avg_sentence_length >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>
+                        {writingGrade.featureContributions.avg_sentence_length >= 0 ? "+" : ""}{writingGrade.featureContributions.avg_sentence_length.toFixed(1)}đ
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80">
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Đa dạng từ vựng (TTR)</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white">{(writingGrade.features.lexical_diversity * 100).toFixed(0)}%</p>
+                    {writingGrade.featureContributions?.lexical_diversity !== undefined && (
+                      <span className={cn("text-[11px] font-semibold", writingGrade.featureContributions.lexical_diversity >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>
+                        {writingGrade.featureContributions.lexical_diversity >= 0 ? "+" : ""}{writingGrade.featureContributions.lexical_diversity.toFixed(1)}đ
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80">
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Từ vựng B1 - C1</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white">{(writingGrade.features.advanced_vocab_ratio * 100).toFixed(1)}%</p>
+                    {writingGrade.featureContributions?.advanced_vocab_ratio !== undefined && (
+                      <span className={cn("text-[11px] font-semibold", writingGrade.featureContributions.advanced_vocab_ratio >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>
+                        {writingGrade.featureContributions.advanced_vocab_ratio >= 0 ? "+" : ""}{writingGrade.featureContributions.advanced_vocab_ratio.toFixed(1)}đ
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80">
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Độ dễ đọc (Flesch)</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white">{writingGrade.features.flesch_reading_ease.toFixed(0)}/100</p>
+                    {writingGrade.featureContributions?.flesch_reading_ease !== undefined && (
+                      <span className={cn("text-[11px] font-semibold", writingGrade.featureContributions.flesch_reading_ease >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>
+                        {writingGrade.featureContributions.flesch_reading_ease >= 0 ? "+" : ""}{writingGrade.featureContributions.flesch_reading_ease.toFixed(1)}đ
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80">
+                    <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Mật độ liên từ</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white">{writingGrade.features.cohesive_density.toFixed(1)}%</p>
+                    {writingGrade.featureContributions?.cohesive_density !== undefined && (
+                      <span className={cn("text-[11px] font-semibold", writingGrade.featureContributions.cohesive_density >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>
+                        {writingGrade.featureContributions.cohesive_density >= 0 ? "+" : ""}{writingGrade.featureContributions.cohesive_density.toFixed(1)}đ
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Phản hồi sư phạm */}
+            <div className="mt-4 rounded-xl border border-slate-200/70 bg-white/90 p-4 dark:border-slate-800 dark:bg-slate-900/80">
+              <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">{writingGrade.feedback}</p>
+              {writingGrade.strengths.length > 0 && (
+                <div className="mt-3 text-xs text-emerald-800 dark:text-emerald-300">
+                  <strong>✨ Điểm sáng:</strong> {writingGrade.strengths.join("; ")}
+                </div>
+              )}
+              {writingGrade.corrections.length > 0 && (
+                <div className="mt-2 text-xs text-amber-800 dark:text-amber-300">
+                  <strong>💡 Gợi ý nâng cấp:</strong> {writingGrade.corrections.join("; ")}
+                </div>
+              )}
+            </div>
           </div>
         )}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

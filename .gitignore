@@ -6,14 +6,44 @@ __v0_jsx-dev-runtime.ts
 .v0-trash/
 .vercel/
 
-# Environment variables
-.env*.local
-.env*.example
+# Environment variables & secrets (Bảo mật file cấu hình môi trường)
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
 
-# Common ignores
-node_modules
+# Node dependencies & Next.js build
+node_modules/
 .next/
+out/
+build/
+dist/
+
+# Python Virtual Environments & Caches (Môi trường ảo Python & cache nặng)
+.venv/
+*/.venv/
+venv/
+*/venv/
+env/
+*/env/
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.parquet
+ml_engine/asap_cache.parquet
+ml_engine/dataset_backup_140.json
+
+# Logs, IDE & OS files
 .DS_Store
+Thumbs.db
 *.tsbuildinfo
 .devserver.log
 .devserver*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.turbo/

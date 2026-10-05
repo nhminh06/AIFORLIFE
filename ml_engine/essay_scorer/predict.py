@@ -26,7 +26,8 @@ except ImportError:
 
 def load_model():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    weights_path = os.path.join(base_dir, "model_weights.json")
+    candidate = os.path.join(base_dir, "..", "models", "model_weights.json")
+    weights_path = candidate if os.path.exists(candidate) else os.path.join(base_dir, "model_weights.json")
     if not os.path.exists(weights_path):
         raise FileNotFoundError(f"Chưa tìm thấy file {weights_path}. Hãy chạy python train.py trước!")
     with open(weights_path, "r", encoding="utf-8") as f:

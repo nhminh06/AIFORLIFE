@@ -4,8 +4,8 @@
  * Không phụ thuộc vào API bên ngoài, suy luận trực tiếp trong mili-giây.
  */
 
-import cefrVocabData from "@/ml_engine/cefr_vocab.json"
-import modelWeights from "@/ml_engine/model_weights.json"
+import cefrVocabData from "@/ml_engine/datasets/cefr_vocab.json"
+import modelWeights from "@/ml_engine/models/model_weights.json"
 
 export type EssayFeatures = {
   word_count: number

@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       features: mlResult.features,
       featureContributions: mlResult.featureContributions,
       modelInfo: {
-        modelType: "Ridge Regression (AES - 1.000 Essays)",
+        modelType: "Ridge Regression (AES - 3.000 Essays)",
         r2Score: mlResult.metrics.r2_score,
         rmse: mlResult.metrics.rmse,
         pearsonR: mlResult.metrics.pearson_r,

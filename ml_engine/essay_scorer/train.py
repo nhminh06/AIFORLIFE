@@ -47,7 +47,8 @@ FEATURE_NAMES = [
 
 def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    dataset_path = os.path.join(base_dir, "dataset.json")
+    candidate_ds = os.path.join(base_dir, "..", "datasets", "dataset.json")
+    dataset_path = candidate_ds if os.path.exists(candidate_ds) else os.path.join(base_dir, "dataset.json")
 
     with open(dataset_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -144,7 +145,9 @@ def main():
         }
     }
 
-    out_weights_path = os.path.join(base_dir, "model_weights.json")
+    models_dir = os.path.join(base_dir, "..", "models")
+    os.makedirs(models_dir, exist_ok=True)
+    out_weights_path = os.path.join(models_dir, "model_weights.json")
     with open(out_weights_path, "w", encoding="utf-8") as f:
         json.dump(model_export, f, indent=2, ensure_ascii=False)
 

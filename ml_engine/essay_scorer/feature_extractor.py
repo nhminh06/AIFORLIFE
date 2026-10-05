@@ -32,7 +32,11 @@ class NLPFeatureExtractor:
     def __init__(self, vocab_path: str = None):
         if vocab_path is None:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            vocab_path = os.path.join(base_dir, "cefr_vocab.json")
+            candidate = os.path.join(base_dir, "..", "datasets", "cefr_vocab.json")
+            if os.path.exists(candidate):
+                vocab_path = candidate
+            else:
+                vocab_path = os.path.join(base_dir, "cefr_vocab.json")
             
         with open(vocab_path, "r", encoding="utf-8") as f:
             data = json.load(f)

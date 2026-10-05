@@ -1,0 +1,40 @@
+{
+  "best_model": "Logistic Regression (L2)",
+  "metrics": {
+    "accuracy": 0.6959366391184573,
+    "balanced_accuracy": 0.6959366391184574,
+    "precision": 0.6885354539430086,
+    "recall": 0.7155647382920111,
+    "macro_f1": 0.6958194498270278,
+    "f05": 0.6937767094017094
+  },
+  "all_results": {
+    "Logistic Regression (L2)": {
+      "accuracy": 0.6959366391184573,
+      "balanced_accuracy": 0.6959366391184574,
+      "precision": 0.6885354539430086,
+      "recall": 0.7155647382920111,
+      "macro_f1": 0.6958194498270278,
+      "f05": 0.6937767094017094
+    },
+    "Linear SVM (Calibrated)": {
+      "accuracy": 0.6931818181818182,
+      "balanced_accuracy": 0.6931818181818181,
+      "precision": 0.6849044166117337,
+      "recall": 0.7155647382920111,
+      "macro_f1": 0.6930280267234833,
+      "f05": 0.6908244680851063
+    },
+    "Complement Naive Bayes": {
+      "accuracy": 0.6670110192837465,
+      "balanced_accuracy": 0.6670110192837466,
+      "precision": 0.6841305998481397,
+      "recall": 0.6205234159779615,
+      "macro_f1": 0.6662898391691685,
+      "f05": 0.6703869047619048
+    }
+  },
+  "num_samples": 14516,
+  "train_samples": 11612,
+  "test_samples": 2904
+}

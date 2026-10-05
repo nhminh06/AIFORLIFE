@@ -227,7 +227,7 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
                 <div>
                   <h3 className="font-bold text-slate-900 dark:text-white">Mô hình Machine Learning (Cục bộ)</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Được huấn luyện trên <strong>1.000 bài viết</strong> (ASAP-AES Benchmark)
+                    Được huấn luyện trên <strong>3.000 bài viết</strong> (ASAP-AES Benchmark)
                   </p>
                 </div>
               </div>

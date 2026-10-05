@@ -9,9 +9,16 @@
     "start": "next start",
     "push:phrases": "node scripts/push-phrases-to-firebase.mjs",
     "seed:practice": "node scripts/seed-practice.mjs",
-    "ml:train": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/train.py",
-    "ml:predict": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/predict.py",
-    "ml:import:asap": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/import_asap.py"
+    "ml:train": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/essay_scorer/train.py",
+    "ml:predict": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/essay_scorer/predict.py",
+    "ml:import:asap": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/essay_scorer/import_asap.py",
+    "ml:train:chatbot": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/chatbot_intent/train.py",
+    "ml:predict:chatbot": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/chatbot_intent/predict.py",
+    "ml:train:ged": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/grammar_detector/train_ged.py",
+    "ml:predict:ged": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/grammar_detector/predict_ged.py",
+    "ml:download:ged-datasets": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/grammar_detector/download_datasets.py",
+    "ml:jfleg:extract": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/jfleg_gec/extract_knowledge.py",
+    "ml:jfleg:import": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/jfleg_gec/import_jfleg.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

@@ -58,9 +58,11 @@ def get_level(score: int) -> str:
 
 def download_and_convert(target_total: int = 1000):
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    cache_path = os.path.join(base_dir, "asap_cache.parquet")
-    dataset_path = os.path.join(base_dir, "dataset.json")
-    backup_path = os.path.join(base_dir, "dataset_backup_140.json")
+    datasets_dir = os.path.join(base_dir, "..", "datasets")
+    os.makedirs(datasets_dir, exist_ok=True)
+    cache_path = os.path.join(datasets_dir, "asap_cache.parquet")
+    dataset_path = os.path.join(datasets_dir, "dataset.json")
+    backup_path = os.path.join(datasets_dir, "dataset_backup_140.json")
 
     # 1. Tải file Parquet nếu chưa có sẵn
     if not os.path.exists(cache_path):

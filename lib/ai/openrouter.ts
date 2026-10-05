@@ -252,3 +252,86 @@ export async function openRouterChatJSON<T>(
 
   throw lastError ?? new Error("Yêu cầu AI thất bại. Vui lòng thử lại.")
 }
+
+/** Gọi OpenRouter 1 lần và trả về nội dung dạng văn bản / Markdown */
+async function requestOpenRouterText(
+  messages: OpenRouterMessage[],
+  options: OpenRouterRequestOptions
+): Promise<string> {
+  const apiKey = options.apiKey?.trim() || getOpenRouterApiKey()
+  const reasoning = options.reasoning === undefined ? { enabled: false } : options.reasoning
+
+  let data: { choices?: { message?: { content?: string } }[] }
+  try {
+    const res = await fetch(OPENROUTER_CHAT_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
+        "X-Title": process.env.OPENROUTER_APP_NAME || "LearnSphere AI Chat",
+      },
+      body: JSON.stringify({
+        models: options.models?.length ? options.models : getOpenRouterModels(),
+        messages,
+        temperature: options.temperature ?? 0.6,
+        provider: { sort: "throughput", allow_fallbacks: true },
+        ...(reasoning ? { reasoning } : {}),
+      }),
+      signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS),
+      cache: "no-store",
+    })
+
+    if (!res.ok) {
+      const retryable =
+        res.status === 401 ||
+        res.status === 402 ||
+        res.status === 403 ||
+        res.status === 429 ||
+        res.status >= 500
+      throw new OpenRouterError(await readErrorMessage(res), retryable)
+    }
+
+    data = (await res.json()) as typeof data
+  } catch (err) {
+    if (err instanceof OpenRouterError) throw err
+    const detail = err instanceof Error ? err.message : String(err)
+    throw new OpenRouterError(`Không kết nối được tới OpenRouter: ${detail}`, true)
+  }
+
+  const content = data.choices?.[0]?.message?.content?.trim()
+  if (!content) {
+    throw new OpenRouterError("OpenRouter không trả về nội dung nào. Vui lòng thử lại.", true)
+  }
+
+  return content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim()
+}
+
+/**
+ * Gọi OpenRouter Chat Completions và trả về văn bản tự do (Markdown / plain text).
+ * Tự động xoay vòng key và thử lại nếu gặp sự cố mạng hoặc quá tải.
+ */
+export async function openRouterChatText(
+  messages: OpenRouterMessage[],
+  options: OpenRouterRequestOptions = {}
+): Promise<string> {
+  const maxAttempts = Math.max(1, options.maxAttempts ?? MAX_ATTEMPTS)
+  const apiKeys = options.apiKey ? [options.apiKey] : getOpenRouterApiKeys()
+  const firstKeyIndex = options.apiKey ? 0 : (nextApiKeyIndex++ % apiKeys.length)
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const apiKey = apiKeys[(firstKeyIndex + attempt - 1) % apiKeys.length]
+      return await requestOpenRouterText(messages, { ...options, apiKey })
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      const retryable = err instanceof OpenRouterError ? err.retryable : false
+      if (!retryable || attempt === maxAttempts) break
+      await sleep(250 * attempt)
+    }
+  }
+
+  throw lastError ?? new Error("Yêu cầu AI thất bại. Vui lòng thử lại.")
+}
+

@@ -7,8 +7,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}))
     const practiceResults = body.practiceResults || {}
+    const uid = typeof body.uid === "string" ? body.uid : undefined
 
-    const result = predictPersonalizedPath(practiceResults)
+    const result = predictPersonalizedPath(practiceResults, uid)
 
     return NextResponse.json(result)
   } catch (error) {

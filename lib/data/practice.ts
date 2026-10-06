@@ -44,6 +44,7 @@ export type Exercise = {
   items: Question[]
   category?: PracticeCategory
   examType?: string
+  grammarSlug?: string
 }
 
 export type PracticeResult = {

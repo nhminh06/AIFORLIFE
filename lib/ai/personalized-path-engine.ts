@@ -11,6 +11,7 @@
 import modelData from "@/ml_engine/models/learning_path_model.json"
 import type { PracticeResultRecord } from "@/lib/progress/practice-results-service"
 import type { PracticeResult } from "@/lib/data/practice"
+import { applyMistakeBoost, getInsights, type MistakeInsights } from "@/lib/ai/mistake-tracker"
 
 export type SkillStat = {
   name: string
@@ -23,6 +24,7 @@ export type SkillStat = {
   priorityScore: number
   status: "Cần cải thiện khẩn cấp" | "Cần củng cố thêm" | "Nắm vững tốt" | "Chưa làm bài test"
   color: string
+  recentMistakes?: number
 }
 
 export type LessonRecommendation = {
@@ -56,6 +58,8 @@ export type PersonalizedPathResult = {
     stage3: RoadmapStage
   }
   generatedAt: number
+  insights?: MistakeInsights
+  hasMistakeData?: boolean
 }
 
 type ModelSchema = {
@@ -253,7 +257,8 @@ export function aggregateUserPracticeData(
  * Suy luận Lộ trình Học cá nhân hoá bằng Machine Learning (0ms)
  */
 export function predictPersonalizedPath(
-  practiceResults: Record<string, PracticeResultRecord | PracticeResult>
+  practiceResults: Record<string, PracticeResultRecord | PracticeResult>,
+  uid?: string | null
 ): PersonalizedPathResult {
   const stats = aggregateUserPracticeData(practiceResults)
 
@@ -339,6 +344,32 @@ export function predictPersonalizedPath(
     priorities[target] = score
   })
 
+  // Hiệu chỉnh tăng cường từ nhật ký lỗi thực tế (Mistake Boost Layer)
+  const boostedPriorities = applyMistakeBoost(priorities, uid)
+  const insights = getInsights(uid)
+
+  // 4.4 Cold-start Enhancement & Focus Adjustment
+  let finalFocus = predFocus
+  if (stats.totalAttempted === 0 && insights.recentTotalMistakes > 0) {
+    let maxSkill = "tense"
+    let maxWeight = -1
+    for (const [sk, w] of Object.entries(insights.skillWeights)) {
+      if (w > maxWeight) {
+        maxWeight = w
+        maxSkill = sk
+      }
+    }
+    const skillToFocus: Record<string, string> = {
+      tense: "tense_mastery",
+      syntax: "sentence_structure",
+      listening: "listening_comprehension",
+      adv_grammar: "advanced_grammar",
+      vocab: "vocabulary_expansion",
+      reading: "comprehensive_practice",
+    }
+    finalFocus = skillToFocus[maxSkill] || predFocus
+  }
+
   // 5. Cấu trúc thống kê mảng kỹ năng cho UI (Trung thực 100%)
   const getStatus = (total: number, prio: number, acc: number): SkillStat["status"] => {
     if (total === 0) return "Chưa làm bài test"
@@ -347,79 +378,102 @@ export function predictPersonalizedPath(
     return "Nắm vững tốt"
   }
 
+  const buildSkillStat = (
+    name: string,
+    key: SkillStat["key"],
+    bucketCorrect: number,
+    bucketTotal: number,
+    accuracy: number,
+    targetKey: string,
+    color: string
+  ): SkillStat => {
+    const recentErr = insights.skillMistakeCounts[key] || 0
+    const extraCorrect = insights.skillCorrectCounts?.[key] || 0
+
+    // Tổng số câu đúng: từ bài test chính thức + các lần làm đúng trong ôn tập & từ vựng đã học
+    const effCorrect = bucketCorrect + extraCorrect
+
+    // Số câu sai:
+    // Nếu có bài test chính thức, số sai trong test là (bucketTotal - bucketCorrect).
+    // Nếu có thêm lỗi chưa sửa ngoài bài test (recentErr), đảm bảo phản ánh đầy đủ lỗi thực tế
+    const bucketIncorrect = Math.max(0, bucketTotal - bucketCorrect)
+    const effIncorrect = bucketTotal > 0 ? Math.max(bucketIncorrect, recentErr) : recentErr
+
+    const effTotal = effCorrect + effIncorrect
+    const isAttempted = effTotal > 0
+    const effAccuracy = effTotal > 0 ? Math.round((effCorrect / effTotal) * 100) : 0
+    const prio = boostedPriorities[targetKey] || 50
+
+    return {
+      name,
+      key,
+      correct: effCorrect,
+      incorrect: effIncorrect,
+      total: effTotal,
+      accuracy: effAccuracy,
+      isAttempted,
+      priorityScore: isAttempted ? prio : 25,
+      status: getStatus(effTotal, prio, effTotal > 0 ? effCorrect / effTotal : 0),
+      color,
+      recentMistakes: recentErr,
+    }
+  }
+
   const skills: SkillStat[] = [
-    {
-      name: "Cấu trúc & Sắp xếp câu",
-      key: "syntax",
-      correct: stats.bucket.syntax.correct,
-      incorrect: stats.bucket.syntax.total - stats.bucket.syntax.correct,
-      total: stats.bucket.syntax.total,
-      accuracy: stats.bucket.syntax.total > 0 ? Math.round(stats.syntaxAccuracy * 100) : 0,
-      isAttempted: stats.bucket.syntax.total > 0,
-      priorityScore: stats.bucket.syntax.total > 0 ? (priorities["priority_syntax"] || 50) : 25,
-      status: getStatus(stats.bucket.syntax.total, priorities["priority_syntax"] || 50, stats.syntaxAccuracy),
-      color: "bg-purple-500",
-    },
-    {
-      name: "12 Thì trong tiếng Anh",
-      key: "tense",
-      correct: stats.bucket.tense.correct,
-      incorrect: stats.bucket.tense.total - stats.bucket.tense.correct,
-      total: stats.bucket.tense.total,
-      accuracy: stats.bucket.tense.total > 0 ? Math.round(stats.tenseAccuracy * 100) : 0,
-      isAttempted: stats.bucket.tense.total > 0,
-      priorityScore: stats.bucket.tense.total > 0 ? (priorities["priority_tense"] || 50) : 25,
-      status: getStatus(stats.bucket.tense.total, priorities["priority_tense"] || 50, stats.tenseAccuracy),
-      color: "bg-blue-500",
-    },
-    {
-      name: "Đọc hiểu & Trắc nghiệm",
-      key: "reading",
-      correct: stats.bucket.reading.correct,
-      incorrect: stats.bucket.reading.total - stats.bucket.reading.correct,
-      total: stats.bucket.reading.total,
-      accuracy: stats.bucket.reading.total > 0 ? Math.round(stats.readingAccuracy * 100) : 0,
-      isAttempted: stats.bucket.reading.total > 0,
-      priorityScore: stats.bucket.reading.total > 0 ? (priorities["priority_reading"] || 50) : 25,
-      status: getStatus(stats.bucket.reading.total, priorities["priority_reading"] || 50, stats.readingAccuracy),
-      color: "bg-sky-500",
-    },
-    {
-      name: "Kỹ năng Nghe & Phản xạ",
-      key: "listening",
-      correct: stats.bucket.listening.correct,
-      incorrect: stats.bucket.listening.total - stats.bucket.listening.correct,
-      total: stats.bucket.listening.total,
-      accuracy: stats.bucket.listening.total > 0 ? Math.round(stats.listeningAccuracy * 100) : 0,
-      isAttempted: stats.bucket.listening.total > 0,
-      priorityScore: stats.bucket.listening.total > 0 ? (priorities["priority_listening"] || 50) : 25,
-      status: getStatus(stats.bucket.listening.total, priorities["priority_listening"] || 50, stats.listeningAccuracy),
-      color: "bg-emerald-500",
-    },
-    {
-      name: "Ngữ pháp Nâng cao",
-      key: "adv_grammar",
-      correct: stats.bucket.advGrammar.correct,
-      incorrect: stats.bucket.advGrammar.total - stats.bucket.advGrammar.correct,
-      total: stats.bucket.advGrammar.total,
-      accuracy: stats.bucket.advGrammar.total > 0 ? Math.round(stats.advGrammarAccuracy * 100) : 0,
-      isAttempted: stats.bucket.advGrammar.total > 0,
-      priorityScore: stats.bucket.advGrammar.total > 0 ? (priorities["priority_adv_grammar"] || 50) : 25,
-      status: getStatus(stats.bucket.advGrammar.total, priorities["priority_adv_grammar"] || 50, stats.advGrammarAccuracy),
-      color: "bg-rose-500",
-    },
-    {
-      name: "Từ vựng & Điền từ",
-      key: "vocab",
-      correct: stats.bucket.vocab.correct,
-      incorrect: stats.bucket.vocab.total - stats.bucket.vocab.correct,
-      total: stats.bucket.vocab.total,
-      accuracy: stats.bucket.vocab.total > 0 ? Math.round(stats.vocabAccuracy * 100) : 0,
-      isAttempted: stats.bucket.vocab.total > 0,
-      priorityScore: stats.bucket.vocab.total > 0 ? (priorities["priority_vocab"] || 50) : 25,
-      status: getStatus(stats.bucket.vocab.total, priorities["priority_vocab"] || 50, stats.vocabAccuracy),
-      color: "bg-amber-500",
-    },
+    buildSkillStat(
+      "Cấu trúc & Sắp xếp câu",
+      "syntax",
+      stats.bucket.syntax.correct,
+      stats.bucket.syntax.total,
+      stats.syntaxAccuracy,
+      "priority_syntax",
+      "bg-purple-500"
+    ),
+    buildSkillStat(
+      "12 Thì trong tiếng Anh",
+      "tense",
+      stats.bucket.tense.correct,
+      stats.bucket.tense.total,
+      stats.tenseAccuracy,
+      "priority_tense",
+      "bg-blue-500"
+    ),
+    buildSkillStat(
+      "Đọc hiểu & Trắc nghiệm",
+      "reading",
+      stats.bucket.reading.correct,
+      stats.bucket.reading.total,
+      stats.readingAccuracy,
+      "priority_reading",
+      "bg-sky-500"
+    ),
+    buildSkillStat(
+      "Kỹ năng Nghe & Phản xạ",
+      "listening",
+      stats.bucket.listening.correct,
+      stats.bucket.listening.total,
+      stats.listeningAccuracy,
+      "priority_listening",
+      "bg-emerald-500"
+    ),
+    buildSkillStat(
+      "Ngữ pháp Nâng cao",
+      "adv_grammar",
+      stats.bucket.advGrammar.correct,
+      stats.bucket.advGrammar.total,
+      stats.advGrammarAccuracy,
+      "priority_adv_grammar",
+      "bg-rose-500"
+    ),
+    buildSkillStat(
+      "Từ vựng & Điền từ",
+      "vocab",
+      stats.bucket.vocab.correct,
+      stats.bucket.vocab.total,
+      stats.vocabAccuracy,
+      "priority_vocab",
+      "bg-amber-500"
+    ),
   ]
 
   // Sắp xếp: Ưu tiên cao nhất lên đầu, những bài đã làm và có lỗi sai đứng trước bài chưa làm
@@ -430,15 +484,32 @@ export function predictPersonalizedPath(
   })
 
   // 6. Lấy lộ trình phù hợp từ curriculum
-  const curriculum = model.curriculum_roadmap[predFocus] || model.curriculum_roadmap["tense_mastery"]
+  const curriculum = model.curriculum_roadmap[finalFocus] || model.curriculum_roadmap["tense_mastery"]
+
+  // Phần lý giải trọng tâm số 1 kết hợp lỗi thực tế
+  let focusDesc = curriculum.description
+  if (insights.primaryWeaknessInsight) {
+    focusDesc = `${insights.primaryWeaknessInsight} ${focusDesc}`
+  }
+
+  // Giai đoạn 2 bổ sung top chủ điểm yếu nếu có
+  const stage2Lessons = [...curriculum.stage_2.lessons]
+  if (insights.topTopics.length > 0) {
+    const topTopic = insights.topTopics[0]
+    stage2Lessons.unshift({
+      type: "practice",
+      title: `Khắc phục chủ điểm yếu: ${topTopic.topic} (${topTopic.wrongCount} lỗi)`,
+      action: "/luyen-tap",
+    })
+  }
 
   return {
     level: predLevel,
     levelVi: LEVEL_VI_MAP[predLevel] || "Cơ bản",
     levelConfidence: predLevelConf,
-    primaryFocus: predFocus,
-    primaryFocusTitle: FOCUS_NAME_MAP[predFocus] || curriculum.title,
-    primaryFocusDesc: curriculum.description,
+    primaryFocus: finalFocus,
+    primaryFocusTitle: FOCUS_NAME_MAP[finalFocus] || curriculum.title,
+    primaryFocusDesc: focusDesc,
     totalAttempted: stats.totalAttempted,
     totalCorrect: stats.totalCorrect,
     totalIncorrect: stats.totalIncorrect,
@@ -446,9 +517,14 @@ export function predictPersonalizedPath(
     skills,
     stages: {
       stage1: curriculum.stage_1,
-      stage2: curriculum.stage_2,
+      stage2: {
+        ...curriculum.stage_2,
+        lessons: stage2Lessons,
+      },
       stage3: curriculum.stage_3,
     },
     generatedAt: Date.now(),
+    insights,
+    hasMistakeData: insights.recentTotalMistakes > 0,
   }
 }

@@ -6,6 +6,12 @@ import { ArrowLeft, ArrowRight, CheckCircle2, RotateCcw, XCircle, Cpu, Sparkles,
 
 import { getPracticeType, type Exercise, type PracticeResult } from "@/lib/data/practice"
 import { useStudyAudio } from "@/lib/study-audio-hooks"
+import { useAuth } from "@/lib/auth-context"
+import {
+  createQuestionId,
+  logAnswer,
+  resolveExerciseSkillAndTopic,
+} from "@/lib/ai/mistake-tracker"
 import { cn } from "@/lib/utils"
 
 import { ChoiceQuestion } from "./choice-question"
@@ -38,9 +44,18 @@ type WritingGrade = {
   }
 }
 
-export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCompleted?: (result: PracticeResult) => void }) {
+export function QuizRunner({
+  exercise,
+  onCompleted,
+  onClose,
+}: {
+  exercise: Exercise
+  onCompleted?: (result: PracticeResult) => void
+  onClose?: () => void
+}) {
   const type = getPracticeType(exercise.typeId)
   const total = exercise.items.length
+  const { user } = useAuth()
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<(number | string | boolean)[]>([])
   const [checked, setChecked] = useState(false)
@@ -56,7 +71,18 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
   /* Cài đặt "Hiệu ứng âm thanh" — phát âm đúng/sai sau khi trả lời */
   const audio = useStudyAudio()
 
-  /** Đánh giá đáp án vừa chọn/nhập rồi phát âm tương ứng. */
+  const correctText =
+    current.kind === "choice" || current.kind === "listen" || current.kind === "reading" || current.kind === "listening"
+      ? current.options[current.correctIndex]
+      : current.kind === "fill"
+        ? current.answer
+        : current.kind === "order"
+          ? current.sentence
+          : current.kind === "true-false"
+            ? current.answer ? "Đúng" : "Sai"
+            : "Bài viết đã nộp"
+
+  /** Đánh giá đáp án vừa chọn/nhập, phát âm và ghi nhận lỗi ngầm */
   const playResultSound = (candidate: number | string | boolean) => {
     const isChoice =
       current.kind === "choice" ||
@@ -76,18 +102,65 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
 
     if (correct) audio.correct()
     else audio.wrong()
-  }
 
-  const correctText =
-    current.kind === "choice" || current.kind === "listen" || current.kind === "reading" || current.kind === "listening"
-      ? current.options[current.correctIndex]
-      : current.kind === "fill"
-        ? current.answer
-        : current.kind === "order"
-          ? current.sentence
+    // Ghi nhận ngầm cho Lộ trình AI
+    try {
+      const userText = isChoice
+        ? String(current.options[candidate as number] ?? candidate)
+        : current.kind === "true-false"
+        ? candidate ? "Đúng" : "Sai"
+        : String(candidate)
+
+      const meta = resolveExerciseSkillAndTopic(exercise, current)
+      const prompt =
+        current.kind === "order"
+          ? `Sắp xếp câu: ${(current.words || []).join(" ")}`
           : current.kind === "true-false"
-            ? current.answer ? "Đúng" : "Sai"
-            : "Bài viết đã nộp"
+          ? current.statement
+          : current.prompt
+
+      // Kiểm tra xem câu hỏi có mang metadata bản ghi lỗi gốc không
+      const itemWithMeta = current as {
+        mistakeKey?: string
+        mistakeSource?: string
+        mistakeQuestionId?: string
+        skill?: import("@/lib/ai/mistake-tracker").MistakeSkill
+        topic?: string
+        word?: string
+      }
+
+      const qId = itemWithMeta.mistakeQuestionId || createQuestionId(exercise.id, prompt, String(index))
+      const source = itemWithMeta.mistakeSource || (typeof window !== "undefined" ? window.location.pathname : `/luyen-tap/${exercise.id}`)
+      const key = itemWithMeta.mistakeKey || `${source}:${qId}`
+      const skill = itemWithMeta.skill || meta.skill
+      const topic = itemWithMeta.topic || meta.topic
+      const word = itemWithMeta.word || meta.word
+
+      logAnswer(
+        {
+          key,
+          source,
+          questionId: qId,
+          skill,
+          topic,
+          prompt,
+          userAnswer: userText,
+          correctAnswer: correctText,
+          isCorrect: correct,
+          word,
+          questionData: {
+            kind: current.kind,
+            options: "options" in current ? current.options : undefined,
+            hint: "hint" in current ? current.hint : undefined,
+            words: "words" in current ? current.words : undefined,
+          },
+        },
+        user?.uid
+      )
+    } catch (err) {
+      console.warn("[QuizRunner] Lỗi ghi nhận logAnswer:", err)
+    }
+  }
 
   const answered = answers[index]
   const isCorrect =
@@ -342,13 +415,24 @@ export function QuizRunner({ exercise, onCompleted }: { exercise: Exercise; onCo
             <RotateCcw className="h-4 w-4" />
             Làm lại
           </button>
-          <Link
-            href="/luyen-tap"
-            className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition-colors hover:bg-orange-600"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Về danh sách bài tập
-          </Link>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition-colors hover:bg-indigo-700"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Hoàn tất & Cập nhật lộ trình
+            </button>
+          ) : (
+            <Link
+              href="/luyen-tap"
+              className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition-colors hover:bg-orange-600"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Về danh sách bài tập
+            </Link>
+          )}
         </div>
       </div>
     )

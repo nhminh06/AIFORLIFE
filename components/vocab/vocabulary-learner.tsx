@@ -21,6 +21,7 @@ import { useStudyAudio } from "@/lib/study-audio-hooks"
 import { getSavedVocabExample, saveVocabExample } from "@/lib/vocab-examples"
 import { cn } from "@/lib/utils"
 import { emitWordLearned } from "@/components/dashboard/daily-study-widget"
+import { createQuestionId, logAnswer } from "@/lib/ai/mistake-tracker"
 
 export type LearnerMode = "learn" | "review"
 
@@ -247,9 +248,34 @@ export function VocabularyLearner({
   const handleSubmitDictation = () => {
     if (checked || !userInput.trim()) return
     // Phát âm đúng/sai theo cài đặt "Hiệu ứng âm thanh".
-    if (normalizeAnswer(userInput) === normalizeAnswer(word.en)) audio.correct()
+    const correct = normalizeAnswer(userInput) === normalizeAnswer(word.en)
+    if (correct) audio.correct()
     else audio.wrong()
     setChecked(true)
+
+    // Ghi nhận ngầm cho Lộ trình AI
+    try {
+      logAnswer(
+        {
+          source: typeof window !== "undefined" ? window.location.pathname : "/tu-vung",
+          questionId: createQuestionId("/tu-vung", word.en, word.vi),
+          skill: "vocab",
+          topic: word.type ? (TYPE_LABELS[word.type] || "Từ vựng") : "Từ vựng",
+          prompt: `Gõ chính tả từ vựng: "${word.vi}"`,
+          userAnswer: userInput.trim(),
+          correctAnswer: word.en,
+          isCorrect: correct,
+          word: word.en,
+          questionData: {
+            kind: "fill",
+            hint: word.ipa || undefined,
+          },
+        },
+        uid
+      )
+    } catch (err) {
+      console.warn("[VocabularyLearner] Lỗi ghi nhận logAnswer:", err)
+    }
   }
 
   const isCorrect = checked && normalizeAnswer(userInput) === normalizeAnswer(word.en)

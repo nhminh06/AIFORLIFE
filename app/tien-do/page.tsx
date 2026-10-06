@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Loader2, Lock, LogIn, TrendingUp } from "lucide-react"
+import { Loader2, Lock, LogIn, TrendingUp, ShieldCheck, Trash2 } from "lucide-react"
 
 import { PageHeading } from "@/components/dashboard/page-heading"
 import { SiteShell } from "@/components/dashboard/site-shell"
@@ -13,13 +13,28 @@ import { useAuth } from "@/lib/auth-context"
 import { PROGRESS_UPDATED_EVENT } from "@/lib/progress/local-store"
 import { migrateGuestProgress } from "@/lib/progress/migrate-local"
 import { getProgressData, type ProgressData } from "@/lib/progress-service"
+import { clearMistakes } from "@/lib/ai/mistake-tracker"
 
 export default function TienDoPage() {
   const { user, loading, openAuthModal } = useAuth()
   const uid = user?.uid ?? null
   const [data, setData] = useState<ProgressData | null>(null)
   const [loadingData, setLoadingData] = useState(true)
+  const [clearingMistakes, setClearingMistakes] = useState(false)
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleClearMistakes = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử lỗi sai ngầm không? Lộ trình thích ứng sẽ được tính toán lại từ đầu.")) return
+    setClearingMistakes(true)
+    try {
+      await clearMistakes(uid)
+      window.alert("Đã xóa toàn bộ lịch sử lỗi ngầm thành công!")
+    } catch {
+      window.alert("Có lỗi khi xóa lịch sử lỗi.")
+    } finally {
+      setClearingMistakes(false)
+    }
+  }
 
   useEffect(() => {
     if (loading) return
@@ -161,6 +176,30 @@ export default function TienDoPage() {
           </div>
           <BadgeGrid badges={data.badges} />
           <ActivityTimeline items={data.activity} />
+
+          {/* Quản lý quyền riêng tư & Lịch sử lỗi */}
+          <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Quyền riêng tư & Nhật ký lỗi ngầm</h4>
+                <p className="text-xs text-slate-500">
+                  Dữ liệu câu sai được lưu cục bộ trên máy và chỉ đồng bộ lên tài khoản cá nhân của bạn để tối ưu lộ trình AI.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearMistakes}
+              disabled={clearingMistakes}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {clearingMistakes ? "Đang xóa..." : "Xóa lịch sử lỗi ngầm"}
+            </button>
+          </section>
         </>
       )}
     </SiteShell>

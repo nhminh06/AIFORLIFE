@@ -60,3 +60,25 @@ export function unmarkVocabLearned(
   writeKeys(slug, uid, next)
   return next
 }
+
+/** Đếm tổng số từ vựng đã thuộc trên toàn bộ các bộ từ trong localStorage */
+export function countAllLearnedVocabWords(uid?: string | null): number {
+  if (typeof window === "undefined") return 0
+  try {
+    let total = 0
+    const prefix = `afl:vocab-learned:${uid || "guest"}:`
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i)
+      if (key && key.startsWith(prefix)) {
+        const raw = window.localStorage.getItem(key)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) total += parsed.length
+        }
+      }
+    }
+    return total
+  } catch {
+    return 0
+  }
+}

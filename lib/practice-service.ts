@@ -72,6 +72,7 @@ function parseExercise(value: unknown): Exercise | null {
     bestScore: typeof raw.bestScore === "string" ? raw.bestScore : undefined,
     category: raw.category as PracticeCategory | undefined,
     examType: typeof raw.examType === "string" ? raw.examType : undefined,
+    grammarSlug: typeof raw.grammarSlug === "string" ? raw.grammarSlug : undefined,
     items,
   }
 }

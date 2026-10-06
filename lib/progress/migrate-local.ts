@@ -15,6 +15,7 @@ import { loadLocalBadges, loadLocalStudyDays, loadLocalStudyEvents } from "@/lib
 import { savePracticeResult } from "@/lib/progress/practice-results-service"
 import { saveVocabProgressCloud } from "@/lib/progress/vocab-progress-cloud"
 import { saveGrammarLearnedCloud } from "@/lib/progress/grammar-progress-cloud"
+import { syncMistakesWithCloud } from "@/lib/ai/mistake-tracker"
 
 const VOCAB_PREFIX = "afl:vocab-learned:guest:"
 const GRAMMAR_KEY = "afl-grammar-learned:guest"
@@ -153,6 +154,33 @@ async function migrateDaysAndEvents(uid: string): Promise<void> {
   }
 }
 
+async function migrateGrammarPractices(uid: string): Promise<void> {
+  if (typeof window === "undefined") return
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i)
+      if (!key || !key.startsWith("afl-grammar-practice:")) continue
+      const parts = key.split(":")
+      const slug = parts[1]
+      if (!slug) continue
+      const raw = window.localStorage.getItem(key)
+      if (!raw) continue
+      const ex = JSON.parse(raw)
+      if (!ex || !Array.isArray(ex.items) || ex.items.length === 0) continue
+      const snap = await getDoc(doc(db, "users", uid, "grammarPractices", slug))
+      if (!snap.exists()) {
+        await setDoc(doc(db, "users", uid, "grammarPractices", slug), {
+          ...ex,
+          grammarSlug: slug,
+          updatedAt: serverTimestamp(),
+        })
+      }
+    }
+  } catch (err) {
+    console.warn("[migrate-local] Lỗi di trú bài tập ngữ pháp:", err)
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */
 /* ------------------------------------------------------------------ */
@@ -175,6 +203,8 @@ export async function migrateGuestProgress(uid: string | null | undefined): Prom
     await migrateGrammar(uid)
     await migratePractice(uid)
     await migrateDaysAndEvents(uid)
+    await migrateGrammarPractices(uid)
+    await syncMistakesWithCloud(uid)
   } catch (err) {
     console.error("[migrate-local] Lỗi khi di trú dữ liệu khách:", err)
   }

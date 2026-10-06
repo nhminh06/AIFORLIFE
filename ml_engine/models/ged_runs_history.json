@@ -1,0 +1,254 @@
+[
+  {
+    "timestamp": "2026-10-05 21:03:42",
+    "run_seed": 29950006,
+    "seed_is_fixed": false,
+    "dedup": {
+      "input_rows": 21485,
+      "dropped_empty": 0,
+      "dropped_duplicate": 133,
+      "dropped_conflict": 239,
+      "output_rows": 21113
+    },
+    "sampling": {
+      "total_available": 21113,
+      "total_selected": 13948,
+      "error_count": 6974,
+      "correct_count": 6974,
+      "balanced_capacity": 7143,
+      "available_by_label": {
+        "0": 7143,
+        "1": 13970
+      },
+      "available_by_source": {
+        "c4m": 5996,
+        "cola": 9528,
+        "jfleg": 1394,
+        "jfleg_corrected": 4195
+      },
+      "selected_by_source": {
+        "c4m": 4370,
+        "cola": 6112,
+        "jfleg": 1322,
+        "jfleg_corrected": 2144
+      }
+    },
+    "fingerprint_all": "b9d315a884b39be7",
+    "fingerprint_train": "7824ba367074d1c8",
+    "fingerprint_test": "e4268a0f2507fe50",
+    "train_size": 11158,
+    "test_size": 2790,
+    "is_repeat_of_previous_run": false,
+    "previous_matching_runs": 0
+  },
+  {
+    "timestamp": "2026-10-05 21:04:46",
+    "run_seed": 664373147,
+    "seed_is_fixed": false,
+    "dedup": {
+      "input_rows": 21485,
+      "dropped_empty": 0,
+      "dropped_duplicate": 133,
+      "dropped_conflict": 239,
+      "output_rows": 21113
+    },
+    "sampling": {
+      "total_available": 21113,
+      "total_selected": 13096,
+      "error_count": 6548,
+      "correct_count": 6548,
+      "balanced_capacity": 7143,
+      "available_by_label": {
+        "0": 7143,
+        "1": 13970
+      },
+      "available_by_source": {
+        "c4m": 5996,
+        "cola": 9528,
+        "jfleg": 1394,
+        "jfleg_corrected": 4195
+      },
+      "selected_by_source": {
+        "c4m": 4088,
+        "cola": 5746,
+        "jfleg": 1257,
+        "jfleg_corrected": 2005
+      }
+    },
+    "fingerprint_all": "62c72d6ec1a17dd7",
+    "fingerprint_train": "9147a69b019fd93f",
+    "fingerprint_test": "b97e7a2cbe1523d8",
+    "train_size": 10476,
+    "test_size": 2620,
+    "is_repeat_of_previous_run": false,
+    "previous_matching_runs": 0
+  },
+  {
+    "timestamp": "2026-10-05 21:05:38",
+    "run_seed": 65419734,
+    "seed_is_fixed": false,
+    "dedup": {
+      "input_rows": 21485,
+      "dropped_empty": 0,
+      "dropped_duplicate": 133,
+      "dropped_conflict": 239,
+      "output_rows": 21113
+    },
+    "sampling": {
+      "total_available": 21113,
+      "total_selected": 13674,
+      "error_count": 6837,
+      "correct_count": 6837,
+      "balanced_capacity": 7143,
+      "available_by_label": {
+        "0": 7143,
+        "1": 13970
+      },
+      "available_by_source": {
+        "c4m": 5996,
+        "cola": 9528,
+        "jfleg": 1394,
+        "jfleg_corrected": 4195
+      },
+      "selected_by_source": {
+        "c4m": 4366,
+        "cola": 5974,
+        "jfleg": 1305,
+        "jfleg_corrected": 2029
+      }
+    },
+    "fingerprint_all": "25525e8810b63311",
+    "fingerprint_train": "cceffba80c6a4f4d",
+    "fingerprint_test": "5bfa9d22c765c9d1",
+    "train_size": 10939,
+    "test_size": 2735,
+    "is_repeat_of_previous_run": false,
+    "previous_matching_runs": 0
+  },
+  {
+    "timestamp": "2026-10-05 21:09:00",
+    "run_seed": 1409832382,
+    "seed_is_fixed": false,
+    "dedup": {
+      "input_rows": 21485,
+      "dropped_empty": 0,
+      "dropped_duplicate": 133,
+      "dropped_conflict": 239,
+      "output_rows": 21113
+    },
+    "sampling": {
+      "total_available": 21113,
+      "total_selected": 13018,
+      "error_count": 6509,
+      "correct_count": 6509,
+      "balanced_capacity": 7143,
+      "available_by_label": {
+        "0": 7143,
+        "1": 13970
+      },
+      "available_by_source": {
+        "c4m": 5996,
+        "cola": 9528,
+        "jfleg": 1394,
+        "jfleg_corrected": 4195
+      },
+      "selected_by_source": {
+        "c4m": 4120,
+        "cola": 5653,
+        "jfleg": 1256,
+        "jfleg_corrected": 1989
+      }
+    },
+    "fingerprint_all": "4d88a3bc623dc374",
+    "fingerprint_train": "efff39b7ff5509da",
+    "fingerprint_test": "6a10b464879b3ac2",
+    "train_size": 10414,
+    "test_size": 2604,
+    "is_repeat_of_previous_run": false,
+    "previous_matching_runs": 0
+  },
+  {
+    "timestamp": "2026-10-06 11:44:34",
+    "run_seed": 1881407120,
+    "seed_is_fixed": false,
+    "dedup": {
+      "input_rows": 21485,
+      "dropped_empty": 0,
+      "dropped_duplicate": 133,
+      "dropped_conflict": 239,
+      "output_rows": 21113
+    },
+    "sampling": {
+      "total_available": 21113,
+      "total_selected": 14054,
+      "error_count": 7027,
+      "correct_count": 7027,
+      "balanced_capacity": 7143,
+      "available_by_label": {
+        "0": 7143,
+        "1": 13970
+      },
+      "available_by_source": {
+        "c4m": 5996,
+        "cola": 9528,
+        "jfleg": 1394,
+        "jfleg_corrected": 4195
+      },
+      "selected_by_source": {
+        "c4m": 4451,
+        "cola": 6191,
+        "jfleg": 1333,
+        "jfleg_corrected": 2079
+      }
+    },
+    "fingerprint_all": "257af7ca1416d694",
+    "fingerprint_train": "335b967e0a3aa062",
+    "fingerprint_test": "e6c681fac9e7ae9c",
+    "train_size": 11243,
+    "test_size": 2811,
+    "is_repeat_of_previous_run": false,
+    "previous_matching_runs": 0
+  },
+  {
+    "timestamp": "2026-10-06 11:48:31",
+    "run_seed": 762515895,
+    "seed_is_fixed": false,
+    "dedup": {
+      "input_rows": 21485,
+      "dropped_empty": 0,
+      "dropped_duplicate": 0,
+      "dropped_conflict": 0,
+      "output_rows": 21485
+    },
+    "sampling": {
+      "total_available": 21485,
+      "total_selected": 14150,
+      "error_count": 7075,
+      "correct_count": 7075,
+      "balanced_capacity": 7258,
+      "available_by_label": {
+        "0": 7258,
+        "1": 14227
+      },
+      "available_by_source": {
+        "c4m": 5998,
+        "cola": 9553,
+        "jfleg": 1500,
+        "jfleg_corrected": 4434
+      },
+      "selected_by_source": {
+        "c4m": 4382,
+        "cola": 6104,
+        "jfleg": 1434,
+        "jfleg_corrected": 2230
+      }
+    },
+    "fingerprint_all": "5dce255c29e68319",
+    "fingerprint_train": "1b99a80028fd92b5",
+    "fingerprint_test": "9ece3b912c91cc28",
+    "train_size": 11320,
+    "test_size": 2830,
+    "is_repeat_of_previous_run": false,
+    "previous_matching_runs": 0
+  }
+]

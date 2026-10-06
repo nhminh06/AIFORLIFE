@@ -23,11 +23,19 @@ RE_DOES_PLURAL = re.compile(r"\b(they|we|you|i)\s+(does|doesn't|doesnt|has)\b", 
 RE_HE_SHE_DO = re.compile(r"\b(he|she|it)\s+(do|don't|dont)\b(?!\s+not)", re.IGNORECASE)
 # he/she + have (không phải "has") → lỗi
 RE_HE_HAVE = re.compile(r"\b(he|she|it)\s+have\b(?!\s+been)", re.IGNORECASE)
+# "they/we/you/I + is" → lỗi
+RE_PLURAL_IS = re.compile(r"\b(they|we|you|i)\s+is\b", re.IGNORECASE)
+# "he/she/it + are" → lỗi
+RE_SINGULAR_ARE = re.compile(r"\b(he|she|it)\s+are\b", re.IGNORECASE)
 RE_MODAL_PAST = re.compile(r"\b(can|could|will|would|should|must|may|might)\s+([a-z]+ed|went|saw|bought|came|took|made|found)\b", re.IGNORECASE)
 RE_BE_V_S = re.compile(r"\b(is|am|are|was|were)\s+([a-z]+s)\b", re.IGNORECASE)
 RE_REPEATED_WORDS = re.compile(r"\b([a-zA-Z]{2,})\s+\1\b", re.IGNORECASE)
 RE_DOUBLE_PUNCT = re.compile(r"([,;?!]){2,}")
 RE_LOWER_START = re.compile(r"^[a-z]")
+
+# Dấu hiệu quá khứ đi với động từ hiện tại nguyên thể không trợ động từ (tense clash)
+RE_PAST_SIGNAL = re.compile(r"\b(yesterday|last\s+(?:night|week|month|year|weekend)|ago|in\s+19\d\d|in\s+20[01]\d)\b", re.IGNORECASE)
+RE_PRES_BARE = re.compile(r"\b(go|see|eat|come|buy|take|make|give|write|speak|run|drive|drink)\b", re.IGNORECASE)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Regex MỚI (v2) — bắt lỗi verb form & tense
@@ -89,8 +97,36 @@ RE_TO_PAST = re.compile(
     re.IGNORECASE,
 )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Regex MỚI (v3) — các lỗi ESL điển hình
+# ─────────────────────────────────────────────────────────────────────────────
+# So sánh kép: "more better", "more taller", "most best", "more easier"
+RE_DOUBLE_COMP = re.compile(r"\b(more|most)\s+([a-z]+(?:er|est))\b", re.IGNORECASE)
+
+# Modal + V-s hoặc V-ing: "can plays", "should going", "must works"
+RE_MODAL_S_ING = re.compile(r"\b(can|could|will|would|should|must|may|might)\s+([a-z]+s|[a-z]+ing)\b", re.IGNORECASE)
+
+# "be + agree" (lỗi người học tiếng Việt rất hay gặp): "I am agree", "She is agree"
+RE_BE_AGREE = re.compile(r"\b(am|is|are|was|were)\s+agree\b", re.IGNORECASE)
+
+# Lỗi giới từ & kết hợp từ sai phổ biến:
+# "married with" -> to; "discuss about" -> discuss; "good in" -> good at; "interested on" -> in; "despite of" -> despite
+RE_COLLOC_ERRORS = re.compile(r"\b(married\s+with|discuss\s+about|good\s+in\s+english|interested\s+on|despite\s+of)\b", re.IGNORECASE)
+
+# "Although ... but ..." (thừa liên từ): "Although it rained but we went"
+RE_ALTHOUGH_BUT = re.compile(r"\b(although|even though|though)\b.*?\bbut\b", re.IGNORECASE)
+
+# "There is + danh từ số nhiều": "There is many people / students / cats"
+RE_THERE_IS_PLURAL = re.compile(r"\bthere\s+is\s+(many|several|two|three|four|five|few|[a-z]+s)\b", re.IGNORECASE)
+
+# "They/we/you was":
+RE_THEY_WAS = re.compile(r"\b(they|we|you)\s+was\b", re.IGNORECASE)
+
+# "He/she/it + bare verb (không chia s/es)": "he go", "she want", "he like", "it look"
+RE_HE_SHE_BARE = re.compile(r"\b(he|she|it)\s+(go|like|want|need|come|know|see|take|make|get|think|say|look)\b", re.IGNORECASE)
+
 class GrammarFeatureExtractor:
-    """Trích xuất vector đặc trưng dị thường ngữ pháp từ câu văn tiếng Anh (v2)"""
+    """Trích xuất vector đặc trưng dị thường ngữ pháp từ câu văn tiếng Anh (v3)"""
 
     FEATURE_NAMES = [
         # v1 features
@@ -103,7 +139,7 @@ class GrammarFeatureExtractor:
         "missing_terminal_punct",
         "avg_word_length",
         "comma_density",
-        # v2 features (mới)
+        # v2 features
         "be_bare_verb_count",
         "have_bare_verb_count",
         "to_ing_count",
@@ -113,6 +149,16 @@ class GrammarFeatureExtractor:
         "modal_irregular_past_count",
         "adj_noun_confusion_count",
         "to_past_verb_count",
+        # v3 features (mới)
+        "double_comparative_count",
+        "modal_s_ing_count",
+        "be_agree_count",
+        "colloc_error_count",
+        "although_but_count",
+        "there_is_plural_count",
+        "they_was_count",
+        "he_she_bare_count",
+        "tense_clash_count",
     ]
 
     def extract_sentence_features(self, text: str) -> list:
@@ -137,6 +183,8 @@ class GrammarFeatureExtractor:
             len(RE_DOES_PLURAL.findall(clean)) +
             len(RE_HE_SHE_DO.findall(clean)) +
             len(RE_HE_HAVE.findall(clean)) +
+            len(RE_PLURAL_IS.findall(clean)) +
+            len(RE_SINGULAR_ARE.findall(clean)) +
             len(RE_MODAL_PAST.findall(clean)) +
             len(RE_BE_V_S.findall(clean))
         )
@@ -238,6 +286,32 @@ class GrammarFeatureExtractor:
         # 18. to + past irregular (want to went)
         to_past = len(RE_TO_PAST.findall(clean))
 
+        # ── V3 features ─────────────────────────────────────────────────────
+        double_comp = len(RE_DOUBLE_COMP.findall(clean))
+        modal_s_ing = len(RE_MODAL_S_ING.findall(clean))
+        be_agree = len(RE_BE_AGREE.findall(clean))
+        colloc_err = len(RE_COLLOC_ERRORS.findall(clean))
+        although_but = len(RE_ALTHOUGH_BUT.findall(clean))
+        there_is_pl = len(RE_THERE_IS_PLURAL.findall(clean))
+        they_was = len(RE_THEY_WAS.findall(clean))
+
+        # He/she/it + bare verb (không chia s/es):
+        # KHÔNG bắt khi là câu hỏi hoặc phủ định có trợ động từ: "does he go", "did she like", "can he come"
+        _AUX_PRE = re.compile(r"\b(did|does|do|will|would|can|could|should|must|may|might|to|whether|let|if)\s+(?:not\s+)?(he|she|it)\b", re.IGNORECASE)
+        _aux_spans = [m.span() for m in _AUX_PRE.finditer(clean)]
+        he_she_bare = 0
+        for m in RE_HE_SHE_BARE.finditer(clean):
+            if any(s <= m.start() <= e for s, e in _aux_spans):
+                continue
+            he_she_bare += 1
+
+        # Tense clash (quá khứ + động từ hiện tại nguyên thể không trợ động từ)
+        tense_clash = 0
+        if RE_PAST_SIGNAL.search(clean) and RE_PRES_BARE.search(clean):
+            _neg_or_aux = re.compile(r"\b(didn't|did not|used to|would|could|might)\b", re.IGNORECASE)
+            if not _neg_or_aux.search(clean):
+                tense_clash = 1
+
         return [
             float(article_mismatch),
             float(did_past_count),
@@ -258,6 +332,16 @@ class GrammarFeatureExtractor:
             float(modal_irr),
             float(adj_noun),
             float(to_past),
+            # v3
+            float(double_comp),
+            float(modal_s_ing),
+            float(be_agree),
+            float(colloc_err),
+            float(although_but),
+            float(there_is_pl),
+            float(they_was),
+            float(he_she_bare),
+            float(tense_clash),
         ]
 
     def transform(self, texts: list[str]) -> np.ndarray:

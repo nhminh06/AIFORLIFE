@@ -8,6 +8,7 @@ import { SiteShell } from "@/components/dashboard/site-shell"
 import { DailyChart, WeeklyChart } from "@/components/progress/progress-charts"
 import { ProgressOverview } from "@/components/progress/progress-overview"
 import { ActivityTimeline, BadgeGrid } from "@/components/progress/progress-sections"
+import { AiLearningPathCard } from "@/components/progress/ai-learning-path-card"
 import { useAuth } from "@/lib/auth-context"
 import { PROGRESS_UPDATED_EVENT } from "@/lib/progress/local-store"
 import { migrateGuestProgress } from "@/lib/progress/migrate-local"
@@ -110,6 +111,11 @@ export default function TienDoPage() {
             Đăng nhập ngay
           </button>
         </div>
+
+        {/* Lộ trình Cá nhân hoá từ AI (khách vẫn xem được từ bài đã làm trên máy) */}
+        <div className="mt-6">
+          <AiLearningPathCard uid={null} />
+        </div>
       </SiteShell>
     )
   }
@@ -131,6 +137,12 @@ export default function TienDoPage() {
       ) : (
         <>
           <ProgressOverview courseProgress={data.overview.courseProgress} stats={data.overview.stats} />
+
+          {/* Lộ trình Học Cá nhân hoá từ AI */}
+          <div className="mt-6">
+            <AiLearningPathCard uid={uid} />
+          </div>
+
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50">
               <h3 className="font-bold text-slate-900">Thời gian học theo ngày</h3>

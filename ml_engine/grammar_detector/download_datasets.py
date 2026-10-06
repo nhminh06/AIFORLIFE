@@ -98,7 +98,10 @@ def load_cola() -> list[dict]:
 # HuggingFace raw parquet URL (public repo)
 C4M_HF_URL = "https://huggingface.co/datasets/agentlans/grammar-classification/resolve/main/data/train-00000-of-00012.parquet"
 C4M_JSONL_FALLBACK = "https://huggingface.co/datasets/agentlans/grammar-classification/resolve/main/train.jsonl"
-C4M_SAMPLE_SIZE = 30000  # lấy 30K câu đại diện (rate limit ~6200/run)
+
+# Số câu C4M tối đa được lấy. Mặc định 150K để vượt mốc 100K dòng sau dedup.
+# Ghi đè bằng biến môi trường:  set GED_C4M_SAMPLE=200000
+C4M_SAMPLE_SIZE = int(os.environ.get("GED_C4M_SAMPLE", "150000"))
 
 def load_c4m_grammar() -> list[dict]:
     """Tải grammar-classification dataset từ HuggingFace."""
@@ -256,16 +259,16 @@ def main():
     c4m = load_c4m_grammar()
     all_records.extend(c4m)
 
-    # Shuffle và deduplicate
-    seen_texts = set()
-    unique_records = []
-    for r in all_records:
-        key = r["text"].lower().strip()
-        if key not in seen_texts and len(key) > 5:
-            seen_texts.add(key)
-            unique_records.append(r)
+    # Dedup + loại bỏ xung đột nhãn bằng hàm dùng chung
+    sys.path.insert(0, CURRENT_DIR)
+    from data_utils import dedupe_records
 
-    random.seed(42)
+    unique_records, dedup_stats = dedupe_records(all_records)
+
+    print(f"\n  - Bỏ rỗng/quá ngắn: {dedup_stats['dropped_empty']:,}")
+    print(f"  - Bỏ trùng lặp   : {dedup_stats['dropped_duplicate']:,}")
+    print(f"  - Bỏ xung đột nhãn: {dedup_stats['dropped_conflict']:,}")
+
     random.shuffle(unique_records)
 
     # Thống kê

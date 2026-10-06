@@ -12,13 +12,14 @@
     "ml:train": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/essay_scorer/train.py",
     "ml:predict": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/essay_scorer/predict.py",
     "ml:import:asap": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/essay_scorer/import_asap.py",
-    "ml:train:chatbot": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/chatbot_intent/train.py",
-    "ml:predict:chatbot": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/chatbot_intent/predict.py",
     "ml:train:ged": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/grammar_detector/train_ged.py",
     "ml:predict:ged": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/grammar_detector/predict_ged.py",
     "ml:download:ged-datasets": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/grammar_detector/download_datasets.py",
     "ml:jfleg:extract": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/jfleg_gec/extract_knowledge.py",
-    "ml:jfleg:import": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/jfleg_gec/import_jfleg.py"
+    "ml:jfleg:import": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/jfleg_gec/import_jfleg.py",
+    "ml:dataset:path": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/learning_path/build_dataset.py",
+    "ml:train:path": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/learning_path/train.py",
+    "ml:predict:path": "ml_engine\\.venv\\Scripts\\python.exe ml_engine/learning_path/predict.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

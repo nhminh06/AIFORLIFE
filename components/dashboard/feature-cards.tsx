@@ -5,6 +5,7 @@ import {
   Network,
   PencilLine,
   BarChart3,
+  Sparkles,
 } from "lucide-react"
 
 const features = [
@@ -53,11 +54,20 @@ const features = [
     border: "border-teal-100 dark:border-teal-900/40",
     href: "/tien-do",
   },
+  {
+    label: "Lộ trình AI",
+    desc: "Đoán lỗ hổng & gợi ý lộ trình",
+    icon: Sparkles,
+    bg: "bg-indigo-50 dark:bg-indigo-950/40",
+    iconBg: "bg-indigo-600",
+    border: "border-indigo-100 dark:border-indigo-900/40",
+    href: "/lo-trinh-ai",
+  },
 ]
 
 export function FeatureCards() {
   return (
-    <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+    <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
       {features.map((f) => {
         const Icon = f.icon
         return (

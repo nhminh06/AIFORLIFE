@@ -15,7 +15,7 @@ export default function LoTrinhAiPage() {
       <PageHeading
         icon={Sparkles}
         title="Lộ trình Học Cá nhân hoá từ AI"
-        desc="Mô hình Machine Learning tổng hợp câu đúng & câu sai của bạn để thiết kế lộ trình học thích ứng (Adaptive Pathway)."
+        desc="Hệ thống AI tổng hợp câu đúng & câu sai của bạn để thiết kế lộ trình học thích ứng (Adaptive Pathway)."
         bubbleClass="bg-indigo-600"
       />
 

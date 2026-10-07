@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("[api/mistakes] Lỗi xử lý POST:", err)
     return NextResponse.json(
-      { error: "Đã có lỗi xảy ra khi đồng bộ lỗi ngầm." },
+      { error: "Đã có lỗi xảy ra khi đồng bộ lỗi." },
       { status: 500 }
     )
   }

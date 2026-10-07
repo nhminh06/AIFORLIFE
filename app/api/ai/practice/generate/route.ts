@@ -9,9 +9,13 @@ const VALID_DIFFICULTIES = ["Cơ bản", "Trung cấp", "Nâng cao"]
 const VALID_CATEGORIES: PracticeCategory[] = ["writing", "listening", "reading"]
 
 function questionKindFor(category: PracticeCategory, examType: string): PracticeQuestionKind {
+  if (examType === "Sắp xếp câu") return "order"
+  if (examType === "Trắc nghiệm") return "choice"
+  if (examType === "Nghe chọn đáp án") return "listening"
   if (category === "writing") return "writing"
   if (category === "listening") return "listening"
-  return examType === "Đọc hiểu" ? "reading" : "fill"
+  if (examType === "Đọc hiểu") return "reading"
+  return "fill"
 }
 
 export async function POST(request: Request) {
@@ -27,10 +31,17 @@ export async function POST(request: Request) {
       ? body.category as PracticeCategory
       : "reading"
     const examType = typeof body.examType === "string" ? body.examType.trim().slice(0, 100) : "Đọc hiểu"
+    const isWritingLongForm = category === "writing" && examType !== "Sắp xếp câu"
     const questionCount = Number.isFinite(requestedCount)
-      ? Math.min(Math.max(Math.trunc(requestedCount), category === "writing" ? 1 : 3), category === "writing" ? 3 : 20)
-      : category === "writing" ? 1 : 8
-    const questionTypes: PracticeQuestionKind[] = [questionKindFor(category, examType)]
+      ? Math.min(Math.max(Math.trunc(requestedCount), isWritingLongForm ? 1 : 3), isWritingLongForm ? 3 : 20)
+      : isWritingLongForm ? 1 : 8
+
+    const userTypes = Array.isArray(body.questionTypes)
+      ? (body.questionTypes as PracticeQuestionKind[]).filter((k) => VALID_TYPES.includes(k))
+      : []
+    const questionTypes: PracticeQuestionKind[] = userTypes.length > 0
+      ? userTypes
+      : [questionKindFor(category, examType)]
 
     const exercise = await generateGrammarPractice({
       topic,

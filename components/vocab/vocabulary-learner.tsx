@@ -253,7 +253,7 @@ export function VocabularyLearner({
     else audio.wrong()
     setChecked(true)
 
-    // Ghi nhận ngầm cho Lộ trình AI
+    // Ghi nhận cho Lộ trình AI
     try {
       logAnswer(
         {

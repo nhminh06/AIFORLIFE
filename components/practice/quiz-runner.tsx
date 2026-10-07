@@ -82,7 +82,7 @@ export function QuizRunner({
             ? current.answer ? "Đúng" : "Sai"
             : "Bài viết đã nộp"
 
-  /** Đánh giá đáp án vừa chọn/nhập, phát âm và ghi nhận lỗi ngầm */
+  /** Đánh giá đáp án vừa chọn/nhập, phát âm và ghi nhận lỗi */
   const playResultSound = (candidate: number | string | boolean) => {
     const isChoice =
       current.kind === "choice" ||
@@ -103,7 +103,7 @@ export function QuizRunner({
     if (correct) audio.correct()
     else audio.wrong()
 
-    // Ghi nhận ngầm cho Lộ trình AI
+    // Ghi nhận cho Lộ trình AI
     try {
       const userText = isChoice
         ? String(current.options[candidate as number] ?? candidate)
@@ -295,12 +295,12 @@ export function QuizRunner({
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100/80 pb-4 dark:border-indigo-900/50">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/25">
-                  <Cpu className="h-5 w-5" />
+                  <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white">Mô hình Machine Learning (Cục bộ)</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-white">Đánh giá & Chấm điểm bài viết</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Được huấn luyện trên <strong>3.000 bài viết</strong> (ASAP-AES Benchmark)
+                    Phân tích chi tiết độ mạch lạc, từ vựng và tiêu chí ngôn ngữ học
                   </p>
                 </div>
               </div>
@@ -320,11 +320,11 @@ export function QuizRunner({
               </span>
             </div>
 
-            {/* 6 Đặc trưng ngôn ngữ (NLP Features) trích xuất cục bộ */}
+            {/* 6 Đặc trưng ngôn ngữ (NLP Features) */}
             {writingGrade.features && (
               <div className="mt-4">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Chỉ số ngôn ngữ học (NLP Features) & Đóng góp điểm (XAI):
+                  Chỉ số đánh giá bài viết & chi tiết điểm:
                 </p>
                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                   <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900/80">

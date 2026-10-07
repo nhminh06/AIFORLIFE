@@ -17,37 +17,79 @@ const typeOptions: { id: PracticeQuestionKind; label: string }[] = [
   { id: "true-false", label: "Đúng / Sai" },
 ]
 
-const examOptions: Record<PracticeCategory, { id: string; label: string }[]> = {
+export const examOptions: Record<PracticeCategory, { id: string; label: string }[]> = {
+  reading: [
+    { id: "Sắp xếp câu", label: "Sắp xếp câu (Ghép từ thành câu)" },
+    { id: "Trắc nghiệm", label: "Trắc nghiệm (4 lựa chọn)" },
+    { id: "Điền từ vào câu", label: "Điền từ vào câu" },
+    { id: "Điền từ vào đoạn", label: "Điền từ vào đoạn" },
+    { id: "Đọc hiểu", label: "Đọc hiểu văn bản" },
+  ],
   listening: [
+    { id: "Nghe chọn đáp án", label: "Nghe – chọn đáp án đúng" },
     { id: "Hỏi và đáp", label: "Hỏi và đáp" },
     { id: "Hội thoại", label: "Hội thoại" },
     { id: "Bài nói ngắn", label: "Bài nói ngắn" },
   ],
-  reading: [
-    { id: "Điền từ vào câu", label: "Điền từ vào câu" },
-    { id: "Điền từ vào đoạn", label: "Điền từ vào đoạn" },
-    { id: "Đọc hiểu", label: "Đọc hiểu" },
-  ],
   writing: [
+    { id: "Sắp xếp câu", label: "Sắp xếp câu hoàn chỉnh" },
     { id: "Email phản hồi", label: "Email phản hồi" },
     { id: "Bài luận ý kiến", label: "Bài luận ý kiến" },
   ],
 }
 
 function questionKindForExamType(category: PracticeCategory, examType: string): PracticeQuestionKind {
+  if (examType === "Sắp xếp câu") return "order"
+  if (examType === "Trắc nghiệm") return "choice"
+  if (examType === "Nghe chọn đáp án") return "listening"
   if (category === "writing") return "writing"
   if (category === "listening") return "listening"
   return examType === "Đọc hiểu" ? "reading" : "fill"
 }
 
-export function CreateAiPracticeModal({ onClose, onCreated }: { onClose: () => void; onCreated: (exercise: Exercise) => void }) {
+export type CreateAiPracticeModalProps = {
+  onClose: () => void
+  onCreated: (exercise: Exercise) => void
+  initialTopic?: string
+  initialCategory?: PracticeCategory
+  initialExamType?: string
+  initialQuestionKind?: PracticeQuestionKind
+  initialLevel?: string
+  initialDifficulty?: string
+  initialQuestionCount?: string
+  title?: string
+}
+
+export function CreateAiPracticeModal({
+  onClose,
+  onCreated,
+  initialTopic = "",
+  initialCategory = "reading",
+  initialExamType,
+  initialQuestionKind,
+  initialLevel = "Cơ bản",
+  initialDifficulty = "Cơ bản",
+  initialQuestionCount,
+  title = "Tạo bài luyện bằng AI",
+}: CreateAiPracticeModalProps) {
   const { user } = useAuth()
-  const [topic, setTopic] = useState("")
-  const [category, setCategory] = useState<PracticeCategory>("reading")
-  const [examType, setExamType] = useState(examOptions.reading[0].id)
-  const [level, setLevel] = useState("Cơ bản")
-  const [difficulty, setDifficulty] = useState("Cơ bản")
-  const [questionCount, setQuestionCount] = useState("8")
+  const [topic, setTopic] = useState(initialTopic)
+  const [category, setCategory] = useState<PracticeCategory>(initialCategory)
+  const [examType, setExamType] = useState(() => {
+    if (initialExamType && examOptions[initialCategory]?.some((opt) => opt.id === initialExamType)) {
+      return initialExamType
+    }
+    if (initialQuestionKind === "order") return "Sắp xếp câu"
+    if (initialQuestionKind === "choice") return "Trắc nghiệm"
+    if (initialQuestionKind === "listening") return "Nghe chọn đáp án"
+    return examOptions[initialCategory][0].id
+  })
+  const [level, setLevel] = useState(initialLevel)
+  const [difficulty, setDifficulty] = useState(initialDifficulty)
+  const [questionCount, setQuestionCount] = useState(() => {
+    if (initialQuestionCount) return initialQuestionCount
+    return initialCategory === "writing" && examType !== "Sắp xếp câu" ? "1" : "8"
+  })
   const [request, setRequest] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -87,10 +129,10 @@ export function CreateAiPracticeModal({ onClose, onCreated }: { onClose: () => v
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]" onClick={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <form onSubmit={submit} role="dialog" aria-modal="true" aria-label="Tạo bài luyện bằng AI" className="w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+      <form onSubmit={submit} role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white"><Sparkles className="h-5 w-5" /></span>
-          <div className="min-w-0 flex-1"><h2 className="text-lg font-bold text-slate-900">Tạo bài luyện bằng AI</h2><p className="mt-0.5 text-xs text-slate-500">AI tạo bài theo đúng chủ đề và yêu cầu của bạn.</p></div>
+          <div className="min-w-0 flex-1"><h2 className="text-lg font-bold text-slate-900">{title}</h2><p className="mt-0.5 text-xs text-slate-500">AI tạo bài theo đúng chủ đề và yêu cầu của bạn.</p></div>
           <button type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
         </div>
         <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-5 sm:px-6">

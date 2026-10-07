@@ -109,6 +109,8 @@ export async function loadMyExercises(uid: string): Promise<Exercise[]> {
 
 export async function loadDefaultExercise(id: string, uid?: string | null): Promise<Exercise | null> {
   const results = await resultsFor(uid)
+  const normalizedId = id.trim().toLowerCase()
+
   try {
     const snapshot = await getDoc(doc(db, "practiceExercises", id))
     if (snapshot.exists()) {
@@ -118,7 +120,23 @@ export async function loadDefaultExercise(id: string, uid?: string | null): Prom
   } catch (error) {
     console.warn("[practice-service] Không đọc được bài luyện Firebase, dùng dữ liệu local.", error)
   }
-  const exercise = localExercises.find((item) => item.id === id) ?? null
+
+  // 1. Khớp chính xác ID
+  let exercise = localExercises.find((item) => item.id.toLowerCase() === normalizedId)
+
+  // 2. Fallback bí danh nếu ID từ mô hình gợi ý hoặc định dạng khác
+  if (!exercise) {
+    if (normalizedId === "ex-04" || normalizedId.includes("order") || normalizedId.includes("sap-xep")) {
+      exercise = localExercises.find((item) => item.id === "ex-04") || localExercises.find((item) => item.typeId === "sap-xep-cau")
+    } else if (normalizedId === "ex-01" || normalizedId.includes("quiz") || normalizedId.includes("trac-nghiem")) {
+      exercise = localExercises.find((item) => item.id === "ex-01") || localExercises.find((item) => item.typeId === "trac-nghiem")
+    } else if (normalizedId === "ex-02" || normalizedId.includes("fill") || normalizedId.includes("dien-tu")) {
+      exercise = localExercises.find((item) => item.id === "ex-02") || localExercises.find((item) => item.typeId === "dien-tu")
+    } else if (normalizedId === "ex-03" || normalizedId.includes("listen") || normalizedId.includes("nghe")) {
+      exercise = localExercises.find((item) => item.id === "ex-03") || localExercises.find((item) => item.typeId === "nghe-chon")
+    }
+  }
+
   if (!exercise) return null
   return applyResults([exercise], results)[0]
 }

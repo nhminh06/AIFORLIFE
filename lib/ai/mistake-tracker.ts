@@ -1,8 +1,8 @@
 /**
- * Hệ thống Ghi nhận & Phân tích Lỗi ngầm Toàn site (Background Mistake Tracker)
+ * Hệ thống Ghi nhận & Phân tích Lỗi Toàn site (Mistake Tracker)
  * AFL AI Adaptive Pathway v2.1
  *
- * Chạy ngầm, 100% an toàn (không throw, không chặn UI), lưu LocalStorage (500 bản ghi)
+ * 100% an toàn (không throw, không chặn UI), lưu LocalStorage (500 bản ghi)
  * và tự động đồng bộ Cloud Firestore khi có đăng nhập.
  */
 

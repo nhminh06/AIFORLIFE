@@ -105,8 +105,8 @@ export function getTaskProgress(
     statusLabel: isCompleted
       ? `Đạt ${pct}%`
       : hasAttempted
-      ? `${pct}% (cần ≥ 80%)`
-      : "Cần ≥ 80%",
+        ? `${pct}% (cần ≥ 80%)`
+        : "Cần ≥ 80%",
     scoreText: hasAttempted ? `Điểm cao nhất: ${bestScore}/${bestTotal} (${pct}%)` : "Chưa làm bài test",
     criteria: "Làm bài kiểm tra và đạt điểm số từ 80% trở lên (ví dụ: đúng tối thiểu 8/10 câu). Mức 80% là chuẩn Mastery của AI để công nhận bạn đã vững kiến thức.",
     goal: "Rèn phản xạ nhanh và chứng minh bạn đã làm chủ hoàn toàn kỹ năng này.",
@@ -159,7 +159,7 @@ export function AiLearningPathCard({ uid }: Props) {
 
     // Lắng nghe sự kiện cập nhật lỗi, tiến độ ngữ pháp và bài luyện tập
     const onProgressUpdated = () => {
-      // Chỉ cập nhật ngầm khi KHÔNG đang mở modal ôn tập, để tránh re-render gián đoạn bài test
+      // Chỉ cập nhật khi KHÔNG đang mở modal ôn tập, để tránh re-render gián đoạn bài test
       if (!showReviewModalRef.current) {
         loadPath(true)
       }
@@ -204,7 +204,7 @@ export function AiLearningPathCard({ uid }: Props) {
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
           <div>
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-              Đang phân tích dữ liệu làm bài & nhật ký lỗi ngầm...
+              Đang phân tích dữ liệu làm bài & nhật ký lỗi...
             </h3>
             <p className="text-xs text-slate-500">
               Tổng hợp câu sai, từ vựng hay nhầm lẫn trên toàn hệ thống để lập lộ trình thích ứng
@@ -239,7 +239,7 @@ export function AiLearningPathCard({ uid }: Props) {
                 <Target className="h-3 w-3" />
                 AI Adaptive Pathway
               </span>
-              <span className="text-xs text-slate-500">Tự thích ứng theo lỗi sai ngầm</span>
+              <span className="text-xs text-slate-500">Tự thích ứng theo lỗi sai</span>
             </div>
             <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
               Lộ trình Học Cá nhân hoá từ AI
@@ -281,11 +281,11 @@ export function AiLearningPathCard({ uid }: Props) {
             </span>
           </div>
           <div className="mt-2 text-xs text-indigo-600 dark:text-indigo-400">
-            Độ tin cậy mô hình: {data.levelConfidence}%
+            Độ tin cậy: {data.levelConfidence}%
           </div>
         </div>
 
-        {/* Card 2: Tỷ lệ chính xác chung & Lỗi ngầm */}
+        {/* Card 2: Tỷ lệ chính xác chung & Lỗi */}
         <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-xs backdrop-blur-sm dark:border-slate-800 dark:bg-slate-800/80">
           <div className="text-xs font-medium text-slate-500">Hiệu suất học tập</div>
           <div className="mt-1 flex items-baseline gap-2">
@@ -302,7 +302,7 @@ export function AiLearningPathCard({ uid }: Props) {
             </span>
             {hasMistakes && (
               <span className="inline-flex items-center gap-1 font-semibold text-rose-500">
-                <History className="h-3 w-3" /> {insights?.recentTotalMistakes} lỗi ngầm gần đây
+                <History className="h-3 w-3" /> {insights?.recentTotalMistakes} lỗi gần đây
               </span>
             )}
           </div>
@@ -367,11 +367,11 @@ export function AiLearningPathCard({ uid }: Props) {
                   <Target className="h-3.5 w-3.5" />
                 </span>
                 <h3 className="text-sm font-bold text-rose-950 dark:text-rose-200">
-                  🎯 Ôn lại những gì bạn hay sai (Weakness Recovery)
+                  Ôn lại những gì bạn hay sai (Weakness Recovery)
                 </h3>
               </div>
               <p className="mt-1 text-xs text-rose-800/80 dark:text-rose-300/80">
-                Ghi nhận ngầm toàn site: Đúng 2 lần liên tiếp để được đánh dấu &ldquo;Đã nắm&rdquo; và giảm ưu tiên.
+                Ghi nhận toàn site: Đúng 2 lần liên tiếp để được đánh dấu &ldquo;Đã nắm&rdquo; và giảm ưu tiên.
               </p>
             </div>
 
@@ -489,15 +489,14 @@ export function AiLearningPathCard({ uid }: Props) {
                   {skill.name}
                 </span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    !skill.isAttempted
-                      ? "bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-400"
-                      : skill.status === "Cần cải thiện khẩn cấp"
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${!skill.isAttempted
+                    ? "bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-400"
+                    : skill.status === "Cần cải thiện khẩn cấp"
                       ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
                       : skill.status === "Cần củng cố thêm"
-                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                      : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                  }`}
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    }`}
                 >
                   {skill.status}
                 </span>
@@ -522,9 +521,8 @@ export function AiLearningPathCard({ uid }: Props) {
                 </div>
                 <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      skill.isAttempted ? skill.color : "bg-transparent"
-                    }`}
+                    className={`h-full rounded-full transition-all duration-500 ${skill.isAttempted ? skill.color : "bg-transparent"
+                      }`}
                     style={{ width: skill.isAttempted ? `${Math.max(5, skill.accuracy)}%` : "0%" }}
                   />
                 </div>
@@ -554,7 +552,7 @@ export function AiLearningPathCard({ uid }: Props) {
           🗺️ Lộ trình Đề xuất 3 Giai đoạn (Actionable Learning Steps)
         </h3>
         <p className="mt-0.5 text-xs text-slate-500">
-          Lộ trình được mô hình AI tự động xây dựng dựa trên kết quả các câu bạn làm sai nhiều nhất.
+          Lộ trình được hệ thống AI tự động xây dựng dựa trên kết quả các câu bạn làm sai nhiều nhất.
         </p>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
@@ -601,13 +599,12 @@ export function AiLearningPathCard({ uid }: Props) {
                     </div>
                     <div className="ml-2 flex shrink-0 items-center gap-1.5">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          prog.isCompleted
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
-                            : prog.hasAttempted
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${prog.isCompleted
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
+                          : prog.hasAttempted
                             ? "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300"
                             : "bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                        }`}
+                          }`}
                       >
                         {prog.statusLabel}
                       </span>
@@ -662,13 +659,12 @@ export function AiLearningPathCard({ uid }: Props) {
                     </div>
                     <div className="ml-2 flex shrink-0 items-center gap-1.5">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          prog.isCompleted
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
-                            : prog.hasAttempted
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${prog.isCompleted
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
+                          : prog.hasAttempted
                             ? "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300"
                             : "bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                        }`}
+                          }`}
                       >
                         {prog.statusLabel}
                       </span>
@@ -687,7 +683,7 @@ export function AiLearningPathCard({ uid }: Props) {
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[11px] font-black text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                   3
                 </span>
-                Giai đoạn 3 (Thành thạo & Bứt phá)
+                Giai đoạn 3 (Thành thạo)
               </div>
               <span className="text-[11px] font-semibold text-slate-500">
                 {data.stages.stage3.lessons.filter((l) => getTaskProgress(l, practiceResults, learnedGrammar).isCompleted).length}/{data.stages.stage3.lessons.length} hoàn thành
@@ -723,13 +719,12 @@ export function AiLearningPathCard({ uid }: Props) {
                     </div>
                     <div className="ml-2 flex shrink-0 items-center gap-1.5">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          prog.isCompleted
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
-                            : prog.hasAttempted
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${prog.isCompleted
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
+                          : prog.hasAttempted
                             ? "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300"
                             : "bg-slate-200/70 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                        }`}
+                          }`}
                       >
                         {prog.statusLabel}
                       </span>
@@ -771,8 +766,8 @@ export function AiLearningPathCard({ uid }: Props) {
                       {prog.type === "grammar"
                         ? "Lý thuyết Ngữ pháp"
                         : prog.type === "recovery"
-                        ? "Khắc phục Lỗ hổng"
-                        : "Bài tập Luyện tập"}
+                          ? "Khắc phục Lỗ hổng"
+                          : "Bài tập Luyện tập"}
                     </span>
                   </div>
                   <h3 className="mt-1.5 text-lg font-bold text-slate-900 dark:text-white sm:text-xl">
@@ -821,20 +816,19 @@ export function AiLearningPathCard({ uid }: Props) {
                           {prog.isCompleted
                             ? "Đã đạt chuẩn hoàn thành"
                             : prog.hasAttempted
-                            ? "Chưa đạt mức Mastery (≥ 80%)"
-                            : "Chưa hoàn thành"}
+                              ? "Chưa đạt mức Mastery (≥ 80%)"
+                              : "Chưa hoàn thành"}
                         </div>
                         <div className="text-[11px] text-slate-500">{prog.scoreText}</div>
                       </div>
                     </div>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                        prog.isCompleted
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
-                          : prog.hasAttempted
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${prog.isCompleted
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
+                        : prog.hasAttempted
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300"
                           : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                      }`}
+                        }`}
                     >
                       {prog.statusLabel}
                     </span>
@@ -850,7 +844,7 @@ export function AiLearningPathCard({ uid }: Props) {
                         <strong>Mục tiêu:</strong> {prog.goal}
                       </p>
                       <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-                        Sau khi hoàn thành, mô hình AI sẽ tự động tăng độ chính xác của kỹ năng, giảm điểm cấp thiết và đẩy lộ trình sang bước tiếp theo.
+                        Sau khi hoàn thành, hệ thống AI sẽ tự động tăng độ chính xác của kỹ năng, giảm điểm cấp thiết và đẩy lộ trình sang bước tiếp theo.
                       </p>
                     </div>
                   </div>

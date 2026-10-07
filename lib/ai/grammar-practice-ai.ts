@@ -393,7 +393,13 @@ export async function generateGrammarPractice(
     vi: input.topic,
     desc: `${input.difficulty} · ${items.length} câu`,
     typeId: questionTypes.length === 1
-      ? questionTypes[0] === "fill" ? "dien-tu" : questionTypes[0] === "order" ? "sap-xep-cau" : "trac-nghiem"
+      ? questionTypes[0] === "fill"
+        ? "dien-tu"
+        : questionTypes[0] === "order"
+        ? "sap-xep-cau"
+        : questionTypes[0] === "listening"
+        ? "nghe-chon"
+        : "trac-nghiem"
       : "trac-nghiem",
     minutes: Math.max(3, items.length),
     status: "Chưa làm",

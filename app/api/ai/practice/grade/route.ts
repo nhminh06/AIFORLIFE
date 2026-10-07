@@ -26,8 +26,7 @@ export async function POST(request: Request) {
     const minWords = Number(body.minWords) || 50
     if (!prompt || !answer) return Response.json({ error: "Thiếu đề bài hoặc bài viết." }, { status: 400 })
 
-    // Chấm điểm 100% bằng mô hình Machine Learning nội bộ (Ridge Regression trained on 1,000 ASAP essays)
-    // Hoàn toàn không gọi API bên ngoài (OpenRouter)
+    // Đánh giá bài viết và trích xuất đặc trưng ngôn ngữ
     const mlResult = scoreEssayML(answer, minWords)
 
     return Response.json({
@@ -39,7 +38,7 @@ export async function POST(request: Request) {
       features: mlResult.features,
       featureContributions: mlResult.featureContributions,
       modelInfo: {
-        modelType: "Ridge Regression (AES - 3.000 Essays)",
+        modelType: "AI Essay Scorer",
         r2Score: mlResult.metrics.r2_score,
         rmse: mlResult.metrics.rmse,
         pearsonR: mlResult.metrics.pearson_r,

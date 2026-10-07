@@ -24,11 +24,11 @@ export default function TienDoPage() {
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleClearMistakes = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử lỗi sai ngầm không? Lộ trình thích ứng sẽ được tính toán lại từ đầu.")) return
+    if (!window.confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử câu sai không? Lộ trình thích ứng sẽ được tính toán lại từ đầu.")) return
     setClearingMistakes(true)
     try {
       await clearMistakes(uid)
-      window.alert("Đã xóa toàn bộ lịch sử lỗi ngầm thành công!")
+      window.alert("Đã xóa toàn bộ lịch sử câu sai thành công!")
     } catch {
       window.alert("Có lỗi khi xóa lịch sử lỗi.")
     } finally {
@@ -184,7 +184,7 @@ export default function TienDoPage() {
                 <ShieldCheck className="h-5 w-5" />
               </span>
               <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Quyền riêng tư & Nhật ký lỗi ngầm</h4>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Quyền riêng tư & Nhật ký lỗi</h4>
                 <p className="text-xs text-slate-500">
                   Dữ liệu câu sai được lưu cục bộ trên máy và chỉ đồng bộ lên tài khoản cá nhân của bạn để tối ưu lộ trình AI.
                 </p>
@@ -197,7 +197,7 @@ export default function TienDoPage() {
               className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-300"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              {clearingMistakes ? "Đang xóa..." : "Xóa lịch sử lỗi ngầm"}
+              {clearingMistakes ? "Đang xóa..." : "Xóa lịch sử lỗi"}
             </button>
           </section>
         </>
